@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if mode == 'add' %}Add User{% else %}Edit {{ target.get_full_name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:680px; margin:0 auto;">
+
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1>
+                <i class="fas fa-{% if mode == 'add' %}user-plus{% else %}user-edit{% endif %} me-2" style="color:#b7791f;"></i>
+                {% if mode == 'add' %}Add New User{% else %}Edit Account{% endif %}
+            </h1>
+            <p>{% if mode == 'add' %}Create a new student or lecturer account.{% else %}Update account details for {{ target.get_full_name|default:target.username }}.{% endif %}</p>
+        </div>
+        <a href="{% url 'admin_manage_users' %}?tab={{ tab|default:'students' }}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    <div class="card-academic">
+        <div class="card-academic-header">
+            <i class="fas fa-id-card"></i> Account Information
+        </div>
+        <div class="card-academic-body">
+
+            {% if messages %}
+            {% for msg in messages %}
+            <div style="background:{% if msg.tags == 'error' %}#fff5f5{% else %}#f0fff4{% endif %}; border:1px solid {% if msg.tags == 'error' %}#fed7d7{% else %}#c6f6d5{% endif %}; border-radius:var(--radius); padding:10px 14px; font-size:13px; color:{% if msg.tags == 'error' %}#9b2c2c{% else %}#276749{% endif %}; margin-bottom:14px;">
+                <i class="fas fa-{% if msg.tags == 'error' %}exclamation-circle{% else %}check-circle{% endif %} me-1"></i>{{ msg }}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                {% if mode == 'add' %}
+                <!-- User type picker -->
+                <div style="font-size:12px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                    <i class="fas fa-user-tag me-1"></i>Account Type
+                </div>
+                <div style="display:flex; gap:12px; margin-bottom:20px;">
+                    <label style="flex:1; display:flex; align-items:center; gap:10px; padding:14px 16px; border:2px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color .2s;" id="lbl-student">
+                        <input type="radio" name="user_type" value="student" required
+                               onchange="setUserType('student')"
+                               {% if tab == 'students' or tab == '' %}checked{% endif %}
+                               style="accent-color:var(--navy);">
+                        <span>
+                            <strong style="display:block; font-size:13px;">Student</strong>
+                            <span style="font-size:12px; color:var(--text-2);">Requires Student ID</span>
+                        </span>
+                    </label>
+                    <label style="flex:1; display:flex; align-items:center; gap:10px; padding:14px 16px; border:2px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color .2s;" id="lbl-lecturer">
+                        <input type="radio" name="user_type" value="lecturer" required
+                               onchange="setUserType('lecturer')"
+                               {% if tab == 'lecturers' %}checked{% endif %}
+                               style="accent-color:var(--navy);">
+                        <span>
+                            <strong style="display:block; font-size:13px;">Lecturer</strong>
+                            <span style="font-size:12px; color:var(--text-2);">Requires Employee ID</span>
+                        </span>
+                    </label>
+                </div>
+                {% else %}
+                <input type="hidden" name="user_type" value="{{ profile.user_type }}">
+                {% endif %}
+
+                <!-- Personal info -->
+                <div style="font-size:12px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                    <i class="fas fa-info-circle me-1"></i>Personal Details
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">First Name <span style="color:#9b2c2c;">*</span></label>
+                        <input type="text" name="first_name" class="form-field" required
+                               value="{{ target.first_name|default:'' }}" placeholder="e.g. Ahmad">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Last Name <span style="color:#9b2c2c;">*</span></label>
+                        <input type="text" name="last_name" class="form-field" required
+                               value="{{ target.last_name|default:'' }}" placeholder="e.g. Ibrahim">
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">Email Address <span style="color:#9b2c2c;">*</span></label>
+                        <input type="email" name="email" class="form-field" required
+                               value="{{ target.email|default:'' }}" placeholder="e.g. ahmad@university.edu.my">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" id="id-label">
+                            <span id="id-label-text">Student ID</span> <span style="color:#9b2c2c;">*</span>
+                        </label>
+                        <input type="text" name="id_number" class="form-field" required
+                               value="{{ id_value|default:'' }}" id="id-input"
+                               placeholder="e.g. S12345"
+                               {% if mode == 'add' %}oninput="syncUsername(this.value)"{% endif %}>
+                        {% if mode == 'add' %}
+                        <div style="font-size:11px; color:var(--text-3); margin-top:4px;">
+                            <i class="fas fa-link fa-xs me-1"></i>This will also be used as the username.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Course / Department -->
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">Course / Department</label>
+                        <select name="course" class="form-field">
+                            <option value="">— Not specified —</option>
+                            {% for code, label in course_choices %}
+                            <option value="{{ code }}"
+                                {% if profile.course == code or request.POST.course == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {% if mode == 'add' %}
+                <!-- Login credentials -->
+                <div style="font-size:12px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin:20px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                    <i class="fas fa-lock me-1"></i>Login Credentials
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">Username <span style="color:#9b2c2c;">*</span></label>
+                        <div style="position:relative;">
+                            <input type="text" name="username" id="username-input" class="form-field" required
+                                   placeholder="Auto-filled from ID above"
+                                   style="padding-right:90px;">
+                            <span id="username-badge" style="
+                                position:absolute; right:10px; top:50%; transform:translateY(-50%);
+                                font-size:10px; font-weight:700; color:var(--gold);
+                                background:var(--gold-light); border:1px solid var(--warning-border);
+                                padding:2px 8px; border-radius:4px; letter-spacing:.3px;
+                                display:none;">AUTO</span>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-3); margin-top:4px;">
+                            <i class="fas fa-info-circle fa-xs me-1"></i>Auto-set from ID. You may override it.
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Password <span style="color:#9b2c2c;">*</span></label>
+                        <input type="password" name="password" class="form-field" required minlength="8"
+                               placeholder="Minimum 8 characters">
+                    </div>
+                </div>
+                {% else %}
+                <div style="background:var(--navy-light); border-radius:var(--radius); padding:12px 16px; font-size:13px; color:var(--text-2); margin-bottom:16px;">
+                    <i class="fas fa-info-circle me-1 text-info"></i>
+                    Username cannot be changed. To reset the password, use the <strong>Reset Password</strong> button on the user list.
+                </div>
+                {% endif %}
+
+                <div style="display:flex; gap:10px; padding-top:16px; border-top:1px solid var(--border);">
+                    <button type="submit" class="btn-primary-academic" style="flex:1; justify-content:center; padding:11px;">
+                        <i class="fas fa-{% if mode == 'add' %}user-plus{% else %}save{% endif %} me-1"></i>
+                        {% if mode == 'add' %}Create Account{% else %}Save Changes{% endif %}
+                    </button>
+                    <a href="{% url 'admin_manage_users' %}" class="btn-outline-academic" style="flex:1; justify-content:center; padding:11px;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── User type switcher ─────────────────────────── */
+function setUserType(type) {
+    const lblStudent  = document.getElementById('lbl-student');
+    const lblLecturer = document.getElementById('lbl-lecturer');
+    const idText      = document.getElementById('id-label-text');
+    const idInput     = document.getElementById('id-input');
+
+    lblStudent.style.borderColor  = type === 'student'  ? 'var(--navy)' : 'var(--border)';
+    lblLecturer.style.borderColor = type === 'lecturer' ? 'var(--navy)' : 'var(--border)';
+
+    if (type === 'student') {
+        idText.textContent  = 'Student ID';
+        idInput.placeholder = 'e.g. S12345';
+    } else {
+        idText.textContent  = 'Employee ID';
+        idInput.placeholder = 'e.g. LC001';
+    }
+
+    // Re-sync username when type changes if ID already has a value
+    if (idInput.value) syncUsername(idInput.value);
+}
+
+/* ── Username auto-fill from ID ─────────────────── */
+let usernameTouched = false;
+
+function syncUsername(idValue) {
+    const usernameInput = document.getElementById('username-input');
+    const badge         = document.getElementById('username-badge');
+    if (!usernameInput) return;
+
+    if (!usernameTouched) {
+        usernameInput.value = idValue;
+        badge.style.display = idValue ? 'inline-block' : 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const usernameInput = document.getElementById('username-input');
+    const idInput       = document.getElementById('id-input');
+
+    // If admin manually edits username, stop auto-sync
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function () {
+            const badge = document.getElementById('username-badge');
+            // If user clears the field, re-enable auto-sync
+            if (this.value === '' || this.value === (idInput ? idInput.value : '')) {
+                usernameTouched = false;
+                badge.style.display = idInput && idInput.value ? 'inline-block' : 'none';
+            } else {
+                usernameTouched = true;
+                badge.style.display = 'none';
+            }
+        });
+    }
+
+    // Initialise border highlight and set initial username from ID
+    document.querySelectorAll('input[name="user_type"]').forEach(r => {
+        if (r.checked) setUserType(r.value);
+        r.addEventListener('change', () => setUserType(r.value));
+    });
+
+    // If ID already has a value on load (e.g. after failed form submit), sync it
+    if (idInput && idInput.value) syncUsername(idInput.value);
+});
+</script>
+{% endblock %}

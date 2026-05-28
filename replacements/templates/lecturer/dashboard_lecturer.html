@@ -1,0 +1,528 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dashboard — Lecturer{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── QR btn ──────────────────────────────────────────── */
+.qr-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+    color: white; text-decoration: none;
+    padding: 6px 13px; border-radius: 7px;
+    font-size: 12px; font-weight: 700;
+    transition: all .18s;
+    box-shadow: 0 2px 6px rgba(30,58,95,0.25);
+    white-space: nowrap;
+}
+.qr-btn:hover { opacity:.9; color:white; transform:translateY(-1px); }
+
+/* ── Analytics KPI strip ─────────────────────────────── */
+.kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+@media (max-width: 768px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 440px) { .kpi-strip { grid-template-columns: 1fr; } }
+
+.kpi-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 8px rgba(30,58,95,.07);
+    transition: box-shadow .2s, transform .2s;
+}
+.kpi-card:hover { box-shadow: 0 4px 16px rgba(30,58,95,.12); transform: translateY(-2px); }
+
+.kpi-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+}
+.kpi-icon.blue   { background: #ebf0f8; color: var(--navy); }
+.kpi-icon.green  { background: #f0fff4; color: #276749; }
+.kpi-icon.gold   { background: #fffbeb; color: var(--gold); }
+.kpi-icon.red    { background: #fff5f5; color: #9b2c2c; }
+
+.kpi-value {
+    font-size: 26px; font-weight: 900; color: var(--text-1);
+    line-height: 1; margin-bottom: 3px;
+}
+.kpi-value.rate { color: var(--navy); }
+.kpi-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; }
+.kpi-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Analytics chart grid ────────────────────────────── */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    margin-bottom: 0;
+}
+@media (max-width: 992px) { .analytics-grid { grid-template-columns: 1fr; } }
+
+/* ── Status breakdown pills ──────────────────────────── */
+.status-breakdown {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 20px;
+}
+.sb-row {
+    display: flex; align-items: center; gap: 10px;
+}
+.sb-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.sb-label { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
+.sb-bar-wrap {
+    flex: 1.5; height: 6px; background: var(--border-light); border-radius: 99px; overflow: hidden;
+}
+.sb-bar { height: 100%; border-radius: 99px; transition: width .6s ease; }
+.sb-count {
+    font-size: 12px; font-weight: 800; color: var(--text-1); min-width: 28px; text-align: right;
+}
+.sb-pct {
+    font-size: 11px; color: var(--text-3); min-width: 36px; text-align: right;
+}
+
+/* ── Donut center ────────────────────────────────────── */
+.donut-wrap { position: relative; }
+.donut-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none;
+}
+.donut-center .dc-pct  { font-size: 28px; font-weight: 900; color: var(--navy); line-height: 1; }
+.donut-center .dc-lbl  { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+/* ── Chart card inner ────────────────────────────────── */
+.analytics-card-note {
+    font-size: 11px; color: var(--text-3); margin-top: 8px; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- ── Page Banner ──────────────────────────────── -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1>
+                <i class="fas fa-chalkboard-teacher me-2" style="color:var(--gold);"></i>
+                Lecturer Dashboard
+            </h1>
+            <p>Welcome back, <strong style="color:rgba(255,255,255,.9);">{{ user.get_full_name|default:user.username }}</strong>. Here is your activity overview.</p>
+        </div>
+        <div style="position:relative; z-index:1; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{% url 'lecturer_create_request' %}" class="btn-gold">
+                <i class="fas fa-plus"></i> New Request
+            </a>
+            <span style="font-size:11px; color:rgba(255,255,255,.35); align-self:center;">
+                <i class="fas fa-clock me-1"></i>Updated now
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Stats Row ────────────────────────────────── -->
+    <div class="stat-grid mb-4">
+        <div class="stat-card">
+            <div class="icon-wrap blue"><i class="fas fa-clipboard-list"></i></div>
+            <div class="number">{{ total_requests }}</div>
+            <div class="label">Total Requests</div>
+        </div>
+        <div class="stat-card accent-gold">
+            <div class="icon-wrap gold"><i class="fas fa-hourglass-half"></i></div>
+            <div class="number">{{ pending_requests }}</div>
+            <div class="label">Pending</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="icon-wrap green"><i class="fas fa-check-circle"></i></div>
+            <div class="number">{{ approved_requests }}</div>
+            <div class="label">Approved</div>
+        </div>
+        <div class="stat-card accent-red">
+            <div class="icon-wrap red"><i class="fas fa-times-circle"></i></div>
+            <div class="number">{{ rejected_requests }}</div>
+            <div class="label">Rejected</div>
+        </div>
+    </div>
+
+    <!-- ── Quick Actions ────────────────────────────── -->
+    <div class="mb-3"><span class="section-heading" style="font-size:16px;">Quick Actions</span></div>
+    <div class="action-grid mb-4">
+        <a href="{% url 'lecturer_create_request' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-plus-circle"></i></div>
+            Create Request
+        </a>
+        <a href="{% url 'lecturer_view_requests' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-clipboard-list"></i></div>
+            View Requests
+        </a>
+        <a href="{% url 'lecturer_past_replacements' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-history"></i></div>
+            Past Replacements
+        </a>
+        <a href="{% url 'lecturer_venue_feedback' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-comment-alt"></i></div>
+            Venue Feedback
+        </a>
+        <a href="{% url 'timetable_view' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-calendar-alt"></i></div>
+            Timetable
+        </a>
+    </div>
+
+    <!-- ── Analytics ─────────────────────────────────── -->
+    <div class="mb-3" style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+        <span class="section-heading" style="font-size:16px;">My Request Analytics</span>
+        <span style="font-size:12px; color:var(--text-3);">All-time summary of your replacement requests</span>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip mb-3">
+        <div class="kpi-card">
+            <div class="kpi-icon blue"><i class="fas fa-percentage"></i></div>
+            <div>
+                <div class="kpi-value rate" id="kpi-rate">—</div>
+                <div class="kpi-label">Approval Rate</div>
+                <div class="kpi-sub" id="kpi-rate-sub">of submitted requests</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon green"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="kpi-value" id="kpi-approved">{{ approved_requests }}</div>
+                <div class="kpi-label">Approved</div>
+                <div class="kpi-sub">Completed replacements</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon gold"><i class="fas fa-hourglass-half"></i></div>
+            <div>
+                <div class="kpi-value" id="kpi-pending">{{ pending_requests }}</div>
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-sub">Awaiting admin review</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon red"><i class="fas fa-times-circle"></i></div>
+            <div>
+                <div class="kpi-value" id="kpi-rejected">{{ rejected_requests }}</div>
+                <div class="kpi-label">Rejected</div>
+                <div class="kpi-sub">Not approved by admin</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="analytics-grid mb-4">
+
+        <!-- Monthly bar chart -->
+        <div class="card-academic">
+            <div class="card-academic-header">
+                <i class="fas fa-chart-bar"></i> Monthly Breakdown
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">Last 6 months</span>
+            </div>
+            <div class="card-academic-body">
+                <div style="height:250px; padding:4px 0;">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <p class="analytics-card-note">
+                    <i class="fas fa-info-circle"></i>
+                    Each bar shows the number of requests you submitted that month, split by status.
+                </p>
+            </div>
+        </div>
+
+        <!-- Donut + breakdown -->
+        <div class="card-academic">
+            <div class="card-academic-header">
+                <i class="fas fa-chart-pie"></i> Overall Status
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">All requests</span>
+            </div>
+            <div class="card-academic-body">
+                <div class="donut-wrap" style="height:180px; position:relative;">
+                    <canvas id="statusChart"></canvas>
+                    <div class="donut-center">
+                        <div class="dc-pct" id="donut-pct">—</div>
+                        <div class="dc-lbl">approved</div>
+                    </div>
+                </div>
+                <!-- Status breakdown bars -->
+                <div class="status-breakdown mt-3" id="statusBreakdown">
+                    <div class="sb-row">
+                        <div class="sb-dot" style="background:#276749;"></div>
+                        <div class="sb-label">Approved</div>
+                        <div class="sb-bar-wrap"><div class="sb-bar" id="bar-approved" style="width:0%; background:#276749;"></div></div>
+                        <div class="sb-count" id="cnt-approved">{{ approved_requests }}</div>
+                        <div class="sb-pct" id="pct-approved">—</div>
+                    </div>
+                    <div class="sb-row">
+                        <div class="sb-dot" style="background:#b7791f;"></div>
+                        <div class="sb-label">Pending</div>
+                        <div class="sb-bar-wrap"><div class="sb-bar" id="bar-pending" style="width:0%; background:#b7791f;"></div></div>
+                        <div class="sb-count" id="cnt-pending">{{ pending_requests }}</div>
+                        <div class="sb-pct" id="pct-pending">—</div>
+                    </div>
+                    <div class="sb-row">
+                        <div class="sb-dot" style="background:#9b2c2c;"></div>
+                        <div class="sb-label">Rejected</div>
+                        <div class="sb-bar-wrap"><div class="sb-bar" id="bar-rejected" style="width:0%; background:#9b2c2c;"></div></div>
+                        <div class="sb-count" id="cnt-rejected">{{ rejected_requests }}</div>
+                        <div class="sb-pct" id="pct-rejected">—</div>
+                    </div>
+                </div>
+                <p class="analytics-card-note mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    Percentage of your total {{ total_requests }} request{{ total_requests|pluralize }}.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── Recent Activity ───────────────────────────── -->
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">Recent Activity</span>
+    </div>
+    <div class="card-academic mb-4">
+        <div class="card-academic-header">
+            <i class="fas fa-clock"></i> Latest Requests
+            <a href="{% url 'lecturer_view_requests' %}" class="btn-outline-academic ms-auto"
+               style="padding:4px 12px; font-size:11px;">
+                View All <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div class="card-academic-body">
+            {% if recent_requests %}
+                {% for req in recent_requests %}
+                <div class="activity-item status-{{ req.status }}">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <span style="font-size:14px; font-weight:800; color:var(--navy);">{{ req.subject.subject_code }}</span>
+                            <span style="color:var(--text-2); font-size:13px; font-weight:400;"> — {{ req.subject.subject_name }}</span>
+                            <span class="badge-{{ req.status }} ms-2">{{ req.status|capfirst }}</span>
+                        </div>
+                        {% if req.status == 'approved' %}
+                        <a href="{% url 'lecturer_generate_qr' req.id %}" class="qr-btn">
+                            <i class="fas fa-qrcode"></i> QR Attendance
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div style="color:var(--text-3); font-size:12px; margin-top:7px; display:flex; flex-wrap:wrap; gap:12px;">
+                        <span><i class="fas fa-calendar-alt me-1"></i>{{ req.replacement_date|date:"d M Y" }}</span>
+                        <span><i class="fas fa-clock me-1"></i>{{ req.replacement_time_slot }}</span>
+                        <span><i class="fas fa-building me-1"></i>{{ req.venue.venue_name }}</span>
+                    </div>
+                    {% if req.reason %}
+                    <div style="color:var(--text-3); font-size:12px; margin-top:5px; font-style:italic; border-top:1px solid var(--border-light); padding-top:6px;">
+                        <i class="fas fa-quote-left fa-xs me-1"></i>{{ req.reason|truncatewords:15 }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center; padding:48px; color:var(--text-3);">
+                <i class="fas fa-inbox fa-3x mb-3" style="opacity:.15; color:var(--navy);"></i>
+                <div style="font-size:15px; font-weight:700; color:var(--text-2); margin-bottom:6px;">No recent activity</div>
+                <p style="font-size:13px; margin-bottom:16px;">Create your first replacement request to get started.</p>
+                <a href="{% url 'lecturer_create_request' %}" class="btn-primary-academic">
+                    <i class="fas fa-plus me-1"></i> Create Request
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#718096';
+
+const C = {
+    navy    : '#1e3a5f',
+    navyA   : 'rgba(30,58,95,.15)',
+    green   : '#276749',
+    greenA  : 'rgba(39,103,73,.80)',
+    gold    : '#b7791f',
+    goldA   : 'rgba(183,121,31,.80)',
+    red     : '#9b2c2c',
+    redA    : 'rgba(155,44,44,.80)',
+    gridLine: 'rgba(209,219,232,.45)',
+};
+
+fetch("{% url 'lecturer_chart_data' %}").then(r => r.json()).then(data => {
+
+    /* ── Populate KPI strip ─────────────────────── */
+    const sd    = data.status_breakdown;
+    const total = (sd.approved || 0) + (sd.pending || 0) + (sd.rejected || 0);
+    const rate  = total > 0 ? Math.round((sd.approved / total) * 100) : 0;
+
+    document.getElementById('kpi-rate').textContent    = rate + '%';
+    document.getElementById('kpi-approved').textContent = sd.approved || 0;
+    document.getElementById('kpi-pending').textContent  = sd.pending  || 0;
+    document.getElementById('kpi-rejected').textContent = sd.rejected || 0;
+    document.getElementById('kpi-rate-sub').textContent =
+        total > 0 ? `${sd.approved} of ${total} requests` : 'No requests yet';
+
+    /* ── Populate donut centre ──────────────────── */
+    document.getElementById('donut-pct').textContent = rate + '%';
+
+    /* ── Populate status breakdown bars ────────── */
+    function fillBar(suffix, count) {
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const barEl = document.getElementById('bar-' + suffix);
+        const pctEl = document.getElementById('pct-' + suffix);
+        if (barEl) setTimeout(() => { barEl.style.width = pct + '%'; }, 120);
+        if (pctEl) pctEl.textContent = pct + '%';
+    }
+    fillBar('approved', sd.approved || 0);
+    fillBar('pending',  sd.pending  || 0);
+    fillBar('rejected', sd.rejected || 0);
+
+    /* ── Monthly bar chart ──────────────────────── */
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: data.monthly.labels,
+            datasets: [
+                {
+                    label: 'Approved',
+                    data: data.monthly.approved,
+                    backgroundColor: C.greenA,
+                    borderRadius: 6, borderSkipped: false,
+                    order: 1,
+                },
+                {
+                    label: 'Pending',
+                    data: data.monthly.pending,
+                    backgroundColor: C.goldA,
+                    borderRadius: 6, borderSkipped: false,
+                    order: 2,
+                },
+                {
+                    label: 'Rejected',
+                    data: data.monthly.rejected,
+                    backgroundColor: C.redA,
+                    borderRadius: 6, borderSkipped: false,
+                    order: 3,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'start',
+                    labels: { boxWidth: 10, padding: 16, usePointStyle: true, pointStyle: 'circle' }
+                },
+                tooltip: {
+                    backgroundColor: '#fff',
+                    borderColor: 'rgba(209,219,232,.8)',
+                    borderWidth: 1,
+                    titleColor: '#1a202c',
+                    bodyColor: '#4a5568',
+                    padding: 12,
+                    callbacks: {
+                        afterBody: function(ctx) {
+                            const idx   = ctx[0].dataIndex;
+                            const total = ctx.reduce((s, c) => s + (c.parsed.y || 0), 0);
+                            return total > 0 ? ['', `Total this month: ${total}`] : [];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: false,
+                    grid: { display: false },
+                    ticks: { color: '#718096' },
+                    border: { color: 'rgba(209,219,232,.5)' }
+                },
+                y: {
+                    stacked: false,
+                    beginAtZero: true,
+                    grid: { color: C.gridLine },
+                    ticks: {
+                        color: '#718096',
+                        stepSize: 1,
+                        callback: v => Number.isInteger(v) ? v : ''
+                    },
+                    border: { display: false }
+                }
+            }
+        }
+    });
+
+    /* ── Status donut chart ─────────────────────── */
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Approved', 'Pending', 'Rejected'],
+            datasets: [{
+                data: [sd.approved || 0, sd.pending || 0, sd.rejected || 0],
+                backgroundColor: [C.green, C.gold, C.red],
+                borderWidth: 3,
+                borderColor: '#fff',
+                hoverOffset: 10,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '74%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#fff',
+                    borderColor: 'rgba(209,219,232,.8)',
+                    borderWidth: 1,
+                    titleColor: '#1a202c',
+                    bodyColor: '#4a5568',
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) {
+                            const val = ctx.parsed;
+                            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                            return `  ${ctx.label}: ${val} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+}).catch(err => {
+    console.warn('Chart data fetch failed:', err);
+    /* Fallback: populate KPIs from template vars */
+    const a = parseInt('{{ approved_requests }}') || 0;
+    const p = parseInt('{{ pending_requests }}')  || 0;
+    const r = parseInt('{{ rejected_requests }}') || 0;
+    const t = parseInt('{{ total_requests }}')    || 0;
+    const rate = t > 0 ? Math.round((a / t) * 100) : 0;
+    document.getElementById('kpi-rate').textContent     = rate + '%';
+    document.getElementById('kpi-rate-sub').textContent = t > 0 ? `${a} of ${t} requests` : 'No requests yet';
+    document.getElementById('donut-pct').textContent    = rate + '%';
+    const fillFallback = (s, count) => {
+        const pct = t > 0 ? Math.round((count / t) * 100) : 0;
+        const b = document.getElementById('bar-' + s);
+        const e = document.getElementById('pct-' + s);
+        if (b) setTimeout(() => { b.style.width = pct + '%'; }, 120);
+        if (e) e.textContent = pct + '%';
+    };
+    fillFallback('approved', a); fillFallback('pending', p); fillFallback('rejected', r);
+});
+</script>
+{% endblock %}

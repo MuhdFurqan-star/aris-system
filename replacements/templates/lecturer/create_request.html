@@ -1,0 +1,825 @@
+{% extends 'base.html' %}
+{% block title %}Create Replacement Request{% endblock %}
+
+{% block extra_css %}
+<style>
+.steps {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 24px; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 4px; overflow: hidden;
+}
+.step {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 10px 8px; border-radius: calc(var(--radius) - 2px);
+    font-size: 12px; font-weight: 600; color: var(--text-3);
+    transition: all .25s; cursor: default;
+}
+.step.active { background: var(--navy); color: white; }
+.step.done   { background: #f0fff4; color: #276749; }
+.step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--border); display: grid; place-items: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.step.active .step-num { background: rgba(255,255,255,.3); color: white; }
+.step.done   .step-num { background: #276749; color: white; }
+
+.sec-divider {
+    height: 1px; background: var(--border); margin: 0;
+}
+.sec-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 24px 0; margin-bottom: 18px;
+}
+.sec-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: grid; place-items: center; font-size: 15px; flex-shrink: 0;
+}
+.sec-icon.blue   { background: #ebf0f8; color: #1e3a5f; }
+.sec-icon.green  { background: #f0fff4; color: #276749; }
+.sec-icon.amber  { background: #fef3c7; color: #b7791f; }
+.sec-body { padding: 0 24px 24px; }
+
+.f-grid   { display: grid; gap: 16px; }
+.f-cols-2 { grid-template-columns: 1fr 1fr; }
+.f-group  { display: flex; flex-direction: column; gap: 6px; }
+.f-label  { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .4px; text-transform: uppercase; }
+.req      { color: #9b2c2c; margin-left: 2px; }
+.f-input, .f-select, .f-textarea {
+    width: 100%; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text-1); font-family: inherit; font-size: 14px;
+    padding: 10px 13px; transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+}
+.f-input::placeholder, .f-textarea::placeholder { color: var(--text-3); }
+.f-input:focus, .f-select:focus, .f-textarea:focus {
+    outline: none; border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(30,58,95,.08);
+}
+.f-select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23718096' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.f-textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+.f-hint { font-size: 11px; color: var(--text-3); margin-top: 2px; font-family: monospace; }
+
+/* ── Venue search UI ─────────────────────────────── */
+.venue-prompt {
+    background: var(--page-bg); border: 1px dashed var(--border);
+    border-radius: var(--radius); padding: 12px 16px;
+    font-size: 13px; color: var(--text-3); text-align: center;
+}
+.venue-filter-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 10px 12px; background: var(--page-bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 10px;
+}
+.vf-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.vf-label { font-size: 11px; font-weight: 700; color: var(--text-3); white-space: nowrap; }
+.vtype-pill {
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text-2);
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.vtype-pill:hover  { border-color: var(--navy); color: var(--navy); }
+.vtype-pill.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.venue-search-btn {
+    padding: 7px 14px; background: var(--navy); color: #fff;
+    border: none; border-radius: var(--radius); font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background .2s; white-space: nowrap; margin-left: auto;
+}
+.venue-search-btn:hover { background: #162e4a; }
+.venue-results-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px; margin-top: 6px;
+}
+.venue-card-opt {
+    border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 10px 12px; cursor: pointer; transition: all .18s;
+    background: var(--card-bg); position: relative;
+}
+.venue-card-opt:hover  { border-color: var(--navy); box-shadow: var(--shadow-sm); }
+.venue-card-opt.picked { border-color: #276749; background: #f0fff4; }
+.vc-name   { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.vc-type   { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-bottom: 5px; }
+.vc-type.classroom { background: #e8f0fe; color: #1a3a6b; }
+.vc-type.lab       { background: #e6f4ea; color: #1e6b3a; }
+.vc-type.workshop  { background: #fef3c7; color: #7a4200; }
+.vc-type.studio    { background: #fce4ec; color: #7b1d3a; }
+.vc-meta   { font-size: 11px; color: var(--text-3); margin-bottom: 2px; }
+.vc-pick   {
+    margin-top: 8px; width: 100%; padding: 5px; background: var(--navy); color: #fff;
+    border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+}
+.vc-pick:hover { background: #162e4a; }
+.venue-card-opt.picked .vc-pick { background: #276749; }
+.venue-selected-wrap {
+    margin-bottom: 8px;
+}
+.venue-selected-card {
+    display: flex; align-items: center; gap: 10px;
+    background: #f0fff4; border: 1.5px solid #68d391;
+    border-radius: var(--radius); padding: 10px 14px;
+}
+.venue-change-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 10px;
+    background: none; border: 1px solid #276749; color: #276749;
+    border-radius: 5px; cursor: pointer; white-space: nowrap;
+    transition: all .15s;
+}
+.venue-change-btn:hover { background: #276749; color: #fff; }
+.venue-no-results {
+    text-align: center; padding: 24px 16px; font-size: 13px; color: var(--text-3);
+    background: var(--page-bg); border: 1px dashed var(--border); border-radius: var(--radius);
+}
+
+/* ── AI Suggestion area ──────────────────────────── */
+/* AI Suggestion area */
+.ai-trigger-wrap { padding: 0 24px 18px; }
+.ai-btn {
+    width: 100%; padding: 12px 18px;
+    background: var(--page-bg);
+    border: 1px dashed var(--navy);
+    border-radius: var(--radius); color: var(--navy);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all .2s;
+}
+.ai-btn:hover { background: #ebf0f8; border-style: solid; }
+.ai-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ai-pill {
+    background: var(--navy); color: white;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 7px; border-radius: 20px; letter-spacing: .5px;
+}
+
+/* AI Panel */
+.ai-panel {
+    margin: 0 24px 20px;
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; display: none;
+    animation: slideDown .25s ease;
+}
+@keyframes slideDown { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+.ai-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: #ebf0f8; border-bottom: 1px solid var(--border);
+}
+.ai-panel-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.ai-panel-sub   { font-size: 11px; color: var(--text-3); }
+.ai-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--navy); color: white; }
+.ai-cards { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ai-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; cursor: pointer;
+    transition: all .2s; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.ai-card:hover { border-color: var(--navy); box-shadow: var(--shadow-sm); }
+.ai-card.selected { border-color: #276749; background: #f0fff4; }
+.ai-card-date  { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
+.ai-card-date span { color: var(--text-3); font-weight: 400; }
+.ai-card-venue { font-size: 12px; color: var(--navy); margin-bottom: 3px; }
+.ai-card-loc   { font-size: 11px; color: var(--text-3); }
+.ai-card-reason{ font-size: 11px; color: var(--text-3); margin-top: 4px; font-style: italic; }
+.ai-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+.conf-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .4px; }
+.conf-high   { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.conf-medium { background: #fef3c7; color: #b7791f; border: 1px solid #fbd38d; }
+.conf-low    { background: var(--page-bg); color: var(--text-3); border: 1px solid var(--border); }
+.use-btn {
+    font-size: 12px; font-weight: 600; padding: 6px 12px;
+    background: var(--navy); color: white; border: none;
+    border-radius: 6px; cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.use-btn:hover { background: #162e4a; transform: translateY(-1px); }
+
+/* Conflict alert */
+.conflict-alert {
+    margin: 0 24px 16px; background: #fff5f5;
+    border: 1px solid #fed7d7; border-radius: var(--radius);
+    padding: 10px 14px; display: none;
+    font-size: 13px; color: #9b2c2c; align-items: center; gap: 8px;
+}
+.conflict-alert.show { display: flex; }
+
+/* Spinner */
+.spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(30,58,95,.2); border-top-color: var(--navy);
+    border-radius: 50%; animation: spin .7s linear infinite; display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.no-subject {
+    background: #fef3c7; border: 1px solid #fbd38d;
+    border-radius: var(--radius); padding: 24px; text-align: center; color: #b7791f;
+}
+.no-subject strong { display: block; font-size: 15px; margin-bottom: 6px; }
+.no-subject p { font-size: 13px; color: var(--text-3); margin: 0; }
+
+@media (max-width: 640px) {
+    .f-cols-2 { grid-template-columns: 1fr; }
+    .steps { display: none; }
+    .sec-body, .sec-header { padding-left: 16px; padding-right: 16px; }
+    .ai-trigger-wrap, .ai-panel, .conflict-alert { padding-left: 16px; padding-right: 16px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:820px; margin:0 auto;">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-plus-circle me-2" style="color:#b7791f;"></i>New Replacement Request</h1>
+            <p>Submit a class replacement session for administrative approval.</p>
+        </div>
+        <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    {% if not my_subjects %}
+    <div class="no-subject">
+        <strong><i class="fas fa-exclamation-triangle me-1"></i> No Subjects Assigned</strong>
+        <p>You do not have any subjects assigned yet. Please contact the administrator.</p>
+    </div>
+
+    {% else %}
+
+    <!-- Step indicator -->
+    <div class="steps mb-3">
+        <div class="step active" id="step1"><div class="step-num">1</div> Subject Info</div>
+        <div class="step" id="step2"><div class="step-num">2</div> Replacement Details</div>
+        <div class="step" id="step3"><div class="step-num">3</div> Reason</div>
+        <div class="step" id="step4"><div class="step-num">4</div> Submit</div>
+    </div>
+
+    <!-- Form card -->
+    <div class="card-academic">
+        <form method="POST" id="replacementForm">
+            {% csrf_token %}
+
+            <!-- Section 1: Subject Information -->
+            <div class="sec-header" style="padding-top:22px;">
+                <div class="sec-icon blue"><i class="fas fa-book"></i></div>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--text-1);">Subject Information</div>
+                    <div style="font-size:12px; color:var(--text-3);">Select the subject and original class schedule</div>
+                </div>
+            </div>
+            <div class="sec-body">
+                <div class="f-grid">
+                    <div class="f-group">
+                        <label class="f-label">Subject <span class="req">*</span></label>
+                        <select name="subject" id="id_subject" class="f-select" required>
+                            <option value="">— Select a subject —</option>
+                            {% for subject in my_subjects %}
+                            <option value="{{ subject.id }}">
+                                {{ subject.subject_code }} · {{ subject.subject_name }}
+                                &nbsp;|&nbsp; Sem {{ subject.semester.name }} – Class {{ subject.semester.class_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="f-grid f-cols-2">
+                        <div class="f-group">
+                            <label class="f-label">Original Date <span class="req">*</span></label>
+                            <input type="date" name="original_date" id="id_original_date" class="f-input" required>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Original Time Slot <span class="req">*</span></label>
+                            <input type="text" name="original_time_slot" class="f-input"
+                                   placeholder="e.g. 09:15-11:15"
+                                   pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                                   title="Format: HH:MM-HH:MM" required>
+                            <span class="f-hint">Format: HH:MM-HH:MM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sec-divider"></div>
+
+            <!-- Section 2: Replacement Details -->
+            <div class="sec-header" style="padding-top:20px;">
+                <div class="sec-icon green"><i class="fas fa-calendar-check"></i></div>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--text-1);">Replacement Details</div>
+                    <div style="font-size:12px; color:var(--text-3);">Set the new date, time, and venue for the replacement class</div>
+                </div>
+            </div>
+
+            <!-- AI suggestion trigger -->
+            <div class="ai-trigger-wrap">
+                <button type="button" class="ai-btn" id="aiBtn" disabled>
+                    <i class="fas fa-magic"></i>
+                    <span id="aiBtnText">Select an original date first to get AI suggestions</span>
+                    <span class="ai-pill">AI</span>
+                    <div class="spinner" id="aiSpinner"></div>
+                </button>
+            </div>
+
+            <!-- AI results panel -->
+            <div class="ai-panel" id="aiPanel">
+                <div class="ai-panel-head">
+                    <div>
+                        <div class="ai-panel-title"><i class="fas fa-lightbulb me-1"></i>Smart Slot Suggestions</div>
+                        <div class="ai-panel-sub">Based on your replacement history &amp; venue availability</div>
+                    </div>
+                    <div class="ai-badge" id="aiResultCount">3 suggestions</div>
+                </div>
+                <div class="ai-cards" id="aiCards"></div>
+            </div>
+
+            <!-- Conflict alert -->
+            <div class="conflict-alert" id="conflictAlert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="conflictMsg">This slot is already booked.</span>
+            </div>
+
+            <div class="sec-body">
+                <div class="f-grid">
+                    <div class="f-grid f-cols-2">
+                        <div class="f-group">
+                            <label class="f-label">Replacement Date <span class="req">*</span></label>
+                            <input type="date" name="replacement_date" id="id_replacement_date" class="f-input" required>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Replacement Time Slot <span class="req">*</span></label>
+                            <select name="replacement_time_slot" id="id_replacement_time_slot" class="f-select" required>
+                                <option value="">— Select time slot —</option>
+                                <option value="08:00-09:00">08:00 – 09:00</option>
+                                <option value="08:00-10:00">08:00 – 10:00</option>
+                                <option value="08:30-09:30">08:30 – 09:30</option>
+                                <option value="08:30-10:30">08:30 – 10:30</option>
+                                <option value="09:00-10:00">09:00 – 10:00</option>
+                                <option value="09:00-11:00">09:00 – 11:00</option>
+                                <option value="09:30-10:30">09:30 – 10:30</option>
+                                <option value="09:30-11:30">09:30 – 11:30</option>
+                                <option value="10:00-11:00">10:00 – 11:00</option>
+                                <option value="10:00-12:00">10:00 – 12:00</option>
+                                <option value="10:30-11:30">10:30 – 11:30</option>
+                                <option value="10:30-12:30">10:30 – 12:30</option>
+                                <option value="11:00-12:00">11:00 – 12:00</option>
+                                <option value="11:00-13:00">11:00 – 13:00</option>
+                                <option value="11:30-12:30">11:30 – 12:30</option>
+                                <option value="11:30-13:30">11:30 – 13:30</option>
+                                <option value="12:00-13:00">12:00 – 13:00</option>
+                                <option value="12:00-14:00">12:00 – 14:00</option>
+                                <option value="13:00-14:00">13:00 – 14:00</option>
+                                <option value="13:00-15:00">13:00 – 15:00</option>
+                                <option value="14:00-15:00">14:00 – 15:00</option>
+                                <option value="14:00-16:00">14:00 – 16:00</option>
+                                <option value="14:30-16:30">14:30 – 16:30</option>
+                                <option value="15:00-16:00">15:00 – 16:00</option>
+                                <option value="15:00-17:00">15:00 – 17:00</option>
+                                <option value="16:00-17:00">16:00 – 17:00</option>
+                                <option value="16:00-18:00">16:00 – 18:00</option>
+                                <option value="17:00-18:00">17:00 – 18:00</option>
+                                <option value="17:00-19:00">17:00 – 19:00</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- ── Dynamic venue search ── -->
+                    <div class="f-group" id="venue-section">
+                        <label class="f-label">Venue <span class="req">*</span></label>
+                        <input type="hidden" name="venue" id="id_venue">
+
+                        <!-- Prompt (shown until date+time chosen) -->
+                        <div id="venue-prompt" class="venue-prompt">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Select a <strong>replacement date</strong> and <strong>time slot</strong> above to search for available venues.
+                        </div>
+
+                        <!-- Search controls -->
+                        <div id="venue-search-controls" style="display:none;">
+                            <div class="venue-filter-bar">
+                                <!-- Type pills -->
+                                <div class="vf-group">
+                                    <span class="vf-label">Type:</span>
+                                    <button type="button" class="vtype-pill active" data-type="">All</button>
+                                    {% for code, label in venue_type_choices %}
+                                    <button type="button" class="vtype-pill" data-type="{{ code }}">{{ label }}</button>
+                                    {% endfor %}
+                                </div>
+                                <!-- Min capacity -->
+                                <div class="vf-group">
+                                    <span class="vf-label">Min Capacity:</span>
+                                    <select id="id_min_cap" class="f-select" style="width:auto; min-width:90px; padding:6px 28px 6px 10px; font-size:12px;">
+                                        <option value="">Any</option>
+                                        <option value="20">20+</option>
+                                        <option value="30">30+</option>
+                                        <option value="40">40+</option>
+                                        <option value="50">50+</option>
+                                    </select>
+                                </div>
+                                <!-- Search button -->
+                                <button type="button" id="venueSearchBtn" class="venue-search-btn">
+                                    <i class="fas fa-search me-1"></i>Find Available Venues
+                                    <div class="spinner" id="venueSpinner" style="border-color:rgba(255,255,255,.3); border-top-color:white;"></div>
+                                </button>
+                            </div>
+
+                            <!-- Selected venue display -->
+                            <div id="venue-selected" style="display:none;" class="venue-selected-wrap">
+                                <div class="venue-selected-card">
+                                    <i class="fas fa-building" id="venue-sel-icon" style="color:var(--navy); font-size:18px; flex-shrink:0;"></i>
+                                    <div style="flex:1;">
+                                        <div id="venue-sel-name" style="font-weight:700; font-size:13px; color:var(--text-1);"></div>
+                                        <div id="venue-sel-meta" style="font-size:11px; color:var(--text-3); margin-top:2px;"></div>
+                                    </div>
+                                    <button type="button" id="venue-change-btn" class="venue-change-btn">
+                                        <i class="fas fa-sync-alt me-1"></i>Change
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Results grid -->
+                            <div id="venue-results" style="display:none;" class="venue-results-grid"></div>
+
+                            <!-- No results -->
+                            <div id="venue-no-results" style="display:none;" class="venue-no-results">
+                                <i class="fas fa-calendar-times" style="font-size:28px; opacity:.2; display:block; margin-bottom:8px;"></i>
+                                No venues are available for the selected date, time, type, and capacity.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sec-divider"></div>
+
+            <!-- Section 3: Reason -->
+            <div class="sec-header" style="padding-top:20px;">
+                <div class="sec-icon amber"><i class="fas fa-align-left"></i></div>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--text-1);">Reason for Replacement</div>
+                    <div style="font-size:12px; color:var(--text-3);">Provide a clear reason so administration can review efficiently</div>
+                </div>
+            </div>
+            <div class="sec-body">
+                <div class="f-group">
+                    <label class="f-label">Reason <span class="req">*</span></label>
+                    <textarea name="reason" class="f-textarea"
+                              placeholder="E.g. Medical certificate, attending official conference, public holiday fallback…"
+                              required></textarea>
+                </div>
+            </div>
+
+            <div class="sec-divider"></div>
+
+            <!-- Submit -->
+            <div style="padding: 20px 24px;">
+                <button type="submit" class="btn-primary-academic" id="submitBtn"
+                        style="width:100%; justify-content:center; padding:14px; font-size:15px;">
+                    <i class="fas fa-paper-plane me-2" id="submitIcon"></i>
+                    <span id="submitText">Submit Replacement Request</span>
+                    <div class="spinner" id="submitSpinner" style="border-color:rgba(255,255,255,.3); border-top-color:white;"></div>
+                </button>
+            </div>
+
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const originalDateEl  = document.getElementById('id_original_date');
+    const replaceDateEl   = document.getElementById('id_replacement_date');
+    const timeSlotEl      = document.getElementById('id_replacement_time_slot');
+    const aiBtn           = document.getElementById('aiBtn');
+    const aiBtnText       = document.getElementById('aiBtnText');
+    const aiSpinner       = document.getElementById('aiSpinner');
+    const aiPanel         = document.getElementById('aiPanel');
+    const aiCards         = document.getElementById('aiCards');
+    const aiResultCount   = document.getElementById('aiResultCount');
+    const conflictAlert   = document.getElementById('conflictAlert');
+    const conflictMsg     = document.getElementById('conflictMsg');
+    const submitBtn       = document.getElementById('submitBtn');
+    const submitText      = document.getElementById('submitText');
+    const submitSpinner   = document.getElementById('submitSpinner');
+
+    const today = new Date().toISOString().split('T')[0];
+    if (replaceDateEl) replaceDateEl.setAttribute('min', today);
+
+    /* ── Venue search state ──────────────────── */
+    const venueIdEl      = document.getElementById('id_venue');
+    const venuePrompt    = document.getElementById('venue-prompt');
+    const venueControls  = document.getElementById('venue-search-controls');
+    const venueSearchBtn = document.getElementById('venueSearchBtn');
+    const venueSpinner   = document.getElementById('venueSpinner');
+    const venueResults   = document.getElementById('venue-results');
+    const venueNoResults = document.getElementById('venue-no-results');
+    const venueSelected  = document.getElementById('venue-selected');
+    const venueSelName   = document.getElementById('venue-sel-name');
+    const venueSelMeta   = document.getElementById('venue-sel-meta');
+    const venueChangeBtn = document.getElementById('venue-change-btn');
+    const minCapEl       = document.getElementById('id_min_cap');
+    let   activeVenueType = '';
+
+    // Type pill clicks
+    document.querySelectorAll('.vtype-pill').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.vtype-pill').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            activeVenueType = this.dataset.type;
+        });
+    });
+
+    // Show/hide venue search controls based on date+time
+    function updateVenuePrompt() {
+        const hasDate = replaceDateEl && replaceDateEl.value;
+        const hasTime = timeSlotEl && timeSlotEl.value;
+        if (hasDate && hasTime) {
+            venuePrompt.style.display   = 'none';
+            venueControls.style.display = 'block';
+        } else {
+            venuePrompt.style.display   = 'block';
+            venueControls.style.display = 'none';
+            // Reset selection if date/time changes
+            venueIdEl.value = '';
+            venueSelected.style.display  = 'none';
+            venueResults.style.display   = 'none';
+            venueNoResults.style.display = 'none';
+        }
+    }
+
+    if (replaceDateEl) replaceDateEl.addEventListener('change', updateVenuePrompt);
+    if (timeSlotEl)    timeSlotEl.addEventListener('change', updateVenuePrompt);
+
+    // Search button
+    if (venueSearchBtn) {
+        venueSearchBtn.addEventListener('click', function () {
+            const date     = replaceDateEl?.value;
+            const timeSlot = timeSlotEl?.value;
+            if (!date || !timeSlot) return;
+
+            venueSearchBtn.disabled = true;
+            venueSpinner.style.display = 'block';
+            venueResults.style.display   = 'none';
+            venueNoResults.style.display = 'none';
+            venueSelected.style.display  = 'none';
+            venueIdEl.value = '';
+
+            const params = new URLSearchParams({
+                date, time_slot: timeSlot,
+                venue_type: activeVenueType,
+                min_capacity: minCapEl?.value || '',
+            });
+
+            fetch(`/replacements/venue-search/?${params}`)
+                .then(r => r.json())
+                .then(data => {
+                    venueSearchBtn.disabled = false;
+                    venueSpinner.style.display = 'none';
+                    if (data.error) { alert('Error: ' + data.error); return; }
+                    renderVenueResults(data.available || []);
+                })
+                .catch(() => {
+                    venueSearchBtn.disabled = false;
+                    venueSpinner.style.display = 'none';
+                });
+        });
+    }
+
+    // Render venue cards
+    function renderVenueResults(venues) {
+        venueResults.innerHTML = '';
+        if (!venues.length) {
+            venueNoResults.style.display = 'block';
+            venueResults.style.display   = 'none';
+            return;
+        }
+        venueNoResults.style.display = 'none';
+        const typeIcons = {
+            classroom: 'fa-chalkboard', lab: 'fa-desktop',
+            workshop: 'fa-tools', studio: 'fa-palette'
+        };
+        venues.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'venue-card-opt';
+            card.dataset.id       = v.id;
+            card.dataset.name     = v.name;
+            card.dataset.meta     = `Cap: ${v.capacity} · ${v.location}`;
+            card.dataset.icon     = typeIcons[v.venue_type] || 'fa-building';
+            card.dataset.type     = v.venue_type;
+            card.innerHTML = `
+                <div class="vc-name"><i class="fas ${typeIcons[v.venue_type] || 'fa-building'} me-1" style="font-size:11px; opacity:.7;"></i>${v.name}</div>
+                <span class="vc-type ${v.venue_type}">${v.type_display}</span>
+                <div class="vc-meta"><i class="fas fa-users" style="font-size:10px;"></i> Capacity: ${v.capacity}</div>
+                <div class="vc-meta"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> ${v.location}</div>
+                ${v.facilities ? `<div class="vc-meta" style="margin-top:4px; font-style:italic;">${v.facilities}</div>` : ''}
+                <button type="button" class="vc-pick">Select this venue</button>`;
+            card.querySelector('.vc-pick').addEventListener('click', function () {
+                selectVenue(card.dataset.id, card.dataset.name, card.dataset.meta, card.dataset.icon);
+            });
+            venueResults.appendChild(card);
+        });
+        venueResults.style.display = 'grid';
+    }
+
+    function selectVenue(id, name, meta, icon) {
+        venueIdEl.value = id;
+        venueSelName.textContent = name;
+        venueSelMeta.textContent = meta;
+        const iconEl = document.getElementById('venue-sel-icon');
+        if (iconEl) iconEl.className = `fas ${icon}`;
+        venueSelected.style.display  = 'flex';
+        venueResults.style.display   = 'none';
+        venueNoResults.style.display = 'none';
+        updateSteps();
+        conflictAlert.classList.remove('show');
+    }
+
+    // Change button
+    if (venueChangeBtn) {
+        venueChangeBtn.addEventListener('click', function () {
+            venueIdEl.value = '';
+            venueSelected.style.display = 'none';
+            if (venueResults.children.length) {
+                venueResults.style.display = 'grid';
+            }
+            updateSteps();
+        });
+    }
+
+    // When AI suggestion is used — also trigger venue selection display
+    const _origSelectVenue = window._selectVenue;
+    window._selectFromAI = selectVenue;
+
+    function updateSteps() {
+        const subject  = document.getElementById('id_subject')?.value;
+        const origDate = originalDateEl?.value;
+        const repDate  = replaceDateEl?.value;
+        const timeSlot = timeSlotEl?.value;
+        const venue    = document.getElementById('id_venue')?.value;
+        const reason   = document.querySelector('textarea[name="reason"]')?.value?.trim();
+
+        document.getElementById('step1')?.classList.toggle('done', !!(subject && origDate));
+        document.getElementById('step2')?.classList.toggle('done', !!(repDate && timeSlot && venue));
+        document.getElementById('step3')?.classList.toggle('done', !!(reason));
+
+        const s2Active = !!(subject && origDate);
+        const s3Active = !!(repDate && timeSlot && venue);
+        document.getElementById('step2')?.classList.toggle('active', s2Active && !s3Active);
+        document.getElementById('step3')?.classList.toggle('active', s3Active && !reason);
+        document.getElementById('step4')?.classList.toggle('active', !!(subject && origDate && repDate && timeSlot && venue && reason));
+    }
+
+    document.querySelectorAll('.f-input, .f-select, .f-textarea').forEach(el => {
+        el.addEventListener('change', updateSteps);
+        el.addEventListener('input',  updateSteps);
+    });
+
+    if (originalDateEl) {
+        originalDateEl.addEventListener('change', function () {
+            if (this.value) {
+                aiBtn.disabled = false;
+                aiBtnText.textContent = 'Get AI Smart Slot Suggestions';
+            } else {
+                aiBtn.disabled = true;
+                aiBtnText.textContent = 'Select an original date first to get AI suggestions';
+                aiPanel.style.display = 'none';
+            }
+            updateSteps();
+        });
+    }
+
+    aiBtn.addEventListener('click', function () {
+        const dateVal = originalDateEl?.value;
+        if (!dateVal) return;
+
+        aiBtn.disabled = true;
+        aiBtnText.textContent = 'Analysing your patterns…';
+        aiSpinner.style.display = 'block';
+        aiPanel.style.display   = 'none';
+
+        fetch(`/replacements/ai-suggest/?original_date=${dateVal}`)
+            .then(r => r.json())
+            .then(data => {
+                aiBtn.disabled = false;
+                aiBtnText.textContent = 'Refresh AI Suggestions';
+                aiSpinner.style.display = 'none';
+                if (data.error) { alert('AI Error: ' + data.error); return; }
+                renderSuggestions(data.suggestions);
+            })
+            .catch(err => {
+                aiBtn.disabled = false;
+                aiBtnText.textContent = 'Get AI Smart Slot Suggestions';
+                aiSpinner.style.display = 'none';
+                console.error('AI fetch error:', err);
+            });
+    });
+
+    function renderSuggestions(suggestions) {
+        aiCards.innerHTML = '';
+        if (!suggestions || suggestions.length === 0) {
+            aiCards.innerHTML = '<p style="color:var(--text-3);font-size:13px;padding:6px 4px;">No available slots found in the next 30 days.</p>';
+            aiPanel.style.display = 'block';
+            return;
+        }
+        aiResultCount.textContent = suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '');
+        suggestions.forEach(function (s) {
+            const confClass = { High:'conf-high', Medium:'conf-medium', Low:'conf-low' }[s.confidence] || 'conf-low';
+            const card = document.createElement('div');
+            card.className = 'ai-card';
+            card.innerHTML = `
+                <div class="ai-card-left">
+                    <div class="ai-card-date">${s.day_name}, <span>${fmtDate(s.date)}</span></div>
+                    <div class="ai-card-venue"><i class="fas fa-map-marker-alt me-1"></i>${s.venue_name}</div>
+                    <div class="ai-card-loc">${s.venue_location}</div>
+                    <div class="ai-card-reason"><i class="fas fa-lightbulb me-1"></i>${s.reason}</div>
+                </div>
+                <div class="ai-card-right">
+                    <span class="conf-badge ${confClass}">${s.confidence}</span>
+                    <div style="font-size:11px;color:var(--text-3);font-family:monospace;">${s.time_slot}</div>
+                    <button type="button" class="use-btn"
+                        data-date="${s.date}" data-time="${s.time_slot}"
+                        data-venue="${s.venue_id}" data-venue-name="${s.venue_name}"
+                        data-venue-capacity="${s.capacity||''}" data-venue-loc="${s.venue_location||''}">
+                        Use Slot
+                    </button>
+                </div>`;
+            aiCards.appendChild(card);
+        });
+        aiPanel.style.display = 'block';
+
+        aiCards.querySelectorAll('.use-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                // Fill date
+                if (replaceDateEl) {
+                    replaceDateEl.value = this.dataset.date;
+                    replaceDateEl.dispatchEvent(new Event('change'));
+                }
+                // Fill time slot
+                if (timeSlotEl) {
+                    for (const opt of timeSlotEl.options) {
+                        if (opt.value === this.dataset.time) { opt.selected = true; break; }
+                    }
+                    timeSlotEl.dispatchEvent(new Event('change'));
+                }
+                // Auto-select the suggested venue via the new system
+                if (this.dataset.venue && this.dataset.venueName) {
+                    selectVenue(
+                        this.dataset.venue,
+                        this.dataset.venueName,
+                        `Cap: ${this.dataset.venueCapacity || '—'} · ${this.dataset.venueLoc || ''}`,
+                        'fa-building'
+                    );
+                }
+                aiCards.querySelectorAll('.ai-card').forEach(c => c.classList.remove('selected'));
+                this.closest('.ai-card').classList.add('selected');
+                replaceDateEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateSteps();
+            });
+        });
+    }
+
+    function checkConflict() {
+        const venue    = document.getElementById('id_venue')?.value;
+        const date     = replaceDateEl?.value;
+        const timeSlot = timeSlotEl?.value;
+        if (!venue || !date || !timeSlot) {
+            conflictAlert.classList.remove('show');
+            return;
+        }
+        fetch(`/replacements/check-conflict/?venue_id=${venue}&date=${date}&time_slot=${encodeURIComponent(timeSlot)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.has_conflict) {
+                    conflictMsg.textContent = data.message;
+                    conflictAlert.classList.add('show');
+                } else {
+                    conflictAlert.classList.remove('show');
+                }
+            })
+            .catch(() => conflictAlert.classList.remove('show'));
+    }
+
+    [replaceDateEl, timeSlotEl].forEach(el => {
+        if (el) el.addEventListener('change', checkConflict);
+    });
+
+    document.getElementById('replacementForm')?.addEventListener('submit', function () {
+        submitText.textContent = 'Submitting…';
+        submitSpinner.style.display = 'block';
+        document.getElementById('submitIcon').style.display = 'none';
+        submitBtn.disabled = true;
+    });
+
+    function fmtDate(str) {
+        const d = new Date(str + 'T00:00:00');
+        return d.toLocaleDateString('en-MY', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    updateSteps();
+});
+</script>
+{% endblock %}

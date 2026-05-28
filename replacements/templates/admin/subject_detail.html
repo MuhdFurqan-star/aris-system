@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ sub.subject_code }} — Subject Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+.hours-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+}
+.hours-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 14px;
+    text-align: center;
+}
+.hours-card .h-num { font-size: 28px; font-weight: 700; color: var(--navy); line-height: 1; }
+.hours-card .h-lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-top: 6px; }
+.hours-card.highlight { background: var(--navy); border-color: var(--navy); }
+.hours-card.highlight .h-num { color: white; }
+.hours-card.highlight .h-lbl { color: rgba(255,255,255,.65); }
+.hours-bar {
+    display: flex; height: 10px; border-radius: 5px; overflow: hidden;
+    background: var(--border); margin-top: 10px;
+}
+.hours-bar-seg { transition: width .4s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-book-open me-2" style="color:#b7791f;"></i>{{ sub.subject_code }}</h1>
+            <p>{{ sub.subject_name }} &bull; {{ sub.semester.name }} — Class {{ sub.semester.class_name }}</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{% url 'admin_edit_subject' sub.id %}" class="btn-primary-academic">
+                <i class="fas fa-edit me-1"></i>Edit Subject
+            </a>
+            <a href="{% url 'admin_manage_subjects' %}?semester={{ sub.semester_id }}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- Left column -->
+        <div class="col-lg-8">
+
+            <!-- Subject info card -->
+            <div class="card-academic mb-3">
+                <div class="card-academic-header"><i class="fas fa-info-circle"></i> Subject Information</div>
+                <div class="card-academic-body">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Code</div>
+                            <div style="font-size:18px; font-weight:700; color:var(--navy);">{{ sub.subject_code }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Credit Hours</div>
+                            <div style="font-size:18px; font-weight:700; color:var(--navy);">{{ sub.credit_hours }} <span style="font-size:13px; font-weight:400; color:var(--text-2);">credit{{ sub.credit_hours|pluralize }}</span></div>
+                        </div>
+                        <div class="col-12">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Full Name</div>
+                            <div style="font-size:15px; font-weight:600; color:var(--text-1);">{{ sub.subject_name }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Semester</div>
+                            <div style="font-size:13px;">{{ sub.semester.name }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Class Group</div>
+                            <div style="font-size:13px;">{{ sub.semester.class_name }}</div>
+                        </div>
+                        {% if sub.description %}
+                        <div class="col-12">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;">Description</div>
+                            <div style="font-size:13px; color:var(--text-2); line-height:1.7; background:var(--page-bg); padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border);">
+                                {{ sub.description|linebreaksbr }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hours breakdown -->
+            <div class="card-academic mb-3">
+                <div class="card-academic-header"><i class="fas fa-clock"></i> Teaching Hours Breakdown</div>
+                <div class="card-academic-body">
+
+                    <div class="hours-grid mb-3">
+                        <div class="hours-card">
+                            <div class="h-num">{{ sub.lecture_hours_per_week }}</div>
+                            <div class="h-lbl"><i class="fas fa-chalkboard" style="color:#2b6cb0; margin-right:4px;"></i>Lecture hrs/wk</div>
+                        </div>
+                        <div class="hours-card">
+                            <div class="h-num">{{ sub.tutorial_hours_per_week }}</div>
+                            <div class="h-lbl"><i class="fas fa-comments" style="color:#276749; margin-right:4px;"></i>Tutorial hrs/wk</div>
+                        </div>
+                        <div class="hours-card">
+                            <div class="h-num">{{ sub.lab_hours_per_week }}</div>
+                            <div class="h-lbl"><i class="fas fa-flask" style="color:#975a16; margin-right:4px;"></i>Lab hrs/wk</div>
+                        </div>
+                        <div class="hours-card">
+                            <div class="h-num">{{ sub.contact_hours_per_week }}</div>
+                            <div class="h-lbl">Total contact hrs/wk</div>
+                        </div>
+                        <div class="hours-card">
+                            <div class="h-num">{{ sub.total_weeks }}</div>
+                            <div class="h-lbl">Teaching weeks</div>
+                        </div>
+                        <div class="hours-card highlight">
+                            <div class="h-num">{{ sub.total_contact_hours }}</div>
+                            <div class="h-lbl">Total contact hours</div>
+                        </div>
+                    </div>
+
+                    {% if sub.contact_hours_per_week > 0 %}
+                    <!-- Visual bar -->
+                    <div style="font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:6px;">Contact hour composition (per week)</div>
+                    <div class="hours-bar mb-2">
+                        {% if sub.lecture_hours_per_week %}
+                        <div class="hours-bar-seg" style="width:{% widthratio sub.lecture_hours_per_week sub.contact_hours_per_week 100 %}%; background:#2b6cb0;"></div>
+                        {% endif %}
+                        {% if sub.tutorial_hours_per_week %}
+                        <div class="hours-bar-seg" style="width:{% widthratio sub.tutorial_hours_per_week sub.contact_hours_per_week 100 %}%; background:#276749;"></div>
+                        {% endif %}
+                        {% if sub.lab_hours_per_week %}
+                        <div class="hours-bar-seg" style="width:{% widthratio sub.lab_hours_per_week sub.contact_hours_per_week 100 %}%; background:#975a16;"></div>
+                        {% endif %}
+                    </div>
+                    <div style="display:flex; gap:16px; font-size:11px; color:var(--text-3);">
+                        <span><span style="display:inline-block; width:10px; height:10px; background:#2b6cb0; border-radius:2px; margin-right:4px;"></span>Lecture</span>
+                        <span><span style="display:inline-block; width:10px; height:10px; background:#276749; border-radius:2px; margin-right:4px;"></span>Tutorial</span>
+                        <span><span style="display:inline-block; width:10px; height:10px; background:#975a16; border-radius:2px; margin-right:4px;"></span>Lab</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Per-type totals table -->
+                    <table style="width:100%; margin-top:16px; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr style="background:var(--navy-light);">
+                                <th style="padding:8px 12px; text-align:left; color:var(--navy); font-weight:600;">Type</th>
+                                <th style="padding:8px 12px; text-align:center; color:var(--navy); font-weight:600;">Hrs / Week</th>
+                                <th style="padding:8px 12px; text-align:center; color:var(--navy); font-weight:600;">× {{ sub.total_weeks }} Weeks</th>
+                                <th style="padding:8px 12px; text-align:center; color:var(--navy); font-weight:600;">Total Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px 12px;"><i class="fas fa-chalkboard me-1" style="color:#2b6cb0;"></i>Lecture</td>
+                                <td style="padding:8px 12px; text-align:center;">{{ sub.lecture_hours_per_week }}</td>
+                                <td style="padding:8px 12px; text-align:center; color:var(--text-3);">×{{ sub.total_weeks }}</td>
+                                <td style="padding:8px 12px; text-align:center; font-weight:700;">{{ sub.total_lecture_hours }}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px 12px;"><i class="fas fa-comments me-1" style="color:#276749;"></i>Tutorial</td>
+                                <td style="padding:8px 12px; text-align:center;">{{ sub.tutorial_hours_per_week }}</td>
+                                <td style="padding:8px 12px; text-align:center; color:var(--text-3);">×{{ sub.total_weeks }}</td>
+                                <td style="padding:8px 12px; text-align:center; font-weight:700;">{{ sub.total_tutorial_hours }}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <td style="padding:8px 12px;"><i class="fas fa-flask me-1" style="color:#975a16;"></i>Lab / Practical</td>
+                                <td style="padding:8px 12px; text-align:center;">{{ sub.lab_hours_per_week }}</td>
+                                <td style="padding:8px 12px; text-align:center; color:var(--text-3);">×{{ sub.total_weeks }}</td>
+                                <td style="padding:8px 12px; text-align:center; font-weight:700;">{{ sub.total_lab_hours }}</td>
+                            </tr>
+                            <tr style="background:var(--navy-light);">
+                                <td style="padding:8px 12px; font-weight:700; color:var(--navy);">Total</td>
+                                <td style="padding:8px 12px; text-align:center; font-weight:700; color:var(--navy);">{{ sub.contact_hours_per_week }}</td>
+                                <td style="padding:8px 12px;"></td>
+                                <td style="padding:8px 12px; text-align:center; font-weight:700; color:var(--navy);">{{ sub.total_contact_hours }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Replacement history -->
+            <div class="card-academic mb-3">
+                <div class="card-academic-header">
+                    <i class="fas fa-history"></i> Replacement Class History
+                    <span style="margin-left:auto; font-size:12px; font-weight:400; color:var(--text-3);">
+                        {{ replacement_counts.approved }} approved &bull; {{ replacement_counts.pending }} pending &bull; {{ replacement_counts.rejected }} rejected
+                    </span>
+                </div>
+                {% if replacements %}
+                <div style="overflow-x:auto;">
+                <table class="table-academic">
+                    <thead>
+                        <tr>
+                            <th>Original Date</th>
+                            <th>Replacement Date</th>
+                            <th>Time</th>
+                            <th>Venue</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for r in replacements %}
+                    <tr>
+                        <td style="font-size:13px;">{{ r.original_date|date:"d M Y" }}</td>
+                        <td style="font-size:13px; font-weight:600;">{{ r.replacement_date|date:"d M Y" }}</td>
+                        <td style="font-size:12px; color:var(--text-2);">{{ r.replacement_time_slot }}</td>
+                        <td style="font-size:12px;">{{ r.venue.venue_name }}</td>
+                        <td>
+                            {% if r.status == 'approved' %}<span class="badge-approved">Approved</span>
+                            {% elif r.status == 'pending' %}<span class="badge-pending">Pending</span>
+                            {% else %}<span class="badge-rejected">Rejected</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}
+                <div style="padding:32px; text-align:center; color:var(--text-3); font-size:13px;">
+                    <i class="fas fa-history" style="font-size:22px; margin-bottom:8px; display:block;"></i>
+                    No replacement classes recorded for this subject yet.
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Right column -->
+        <div class="col-lg-4">
+
+            <!-- Lecturer card -->
+            <div class="card-academic mb-3">
+                <div class="card-academic-header"><i class="fas fa-chalkboard-teacher"></i> Lecturer</div>
+                <div class="card-academic-body">
+                    {% if sub.lecturer %}
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                        <div style="width:48px; height:48px; border-radius:50%; background:var(--navy); display:flex; align-items:center; justify-content:center; color:white; font-size:16px; font-weight:700; flex-shrink:0;">
+                            {{ sub.lecturer.first_name|first|upper }}{{ sub.lecturer.last_name|first|upper }}
+                        </div>
+                        <div>
+                            <div style="font-size:14px; font-weight:700; color:var(--navy);">{{ sub.lecturer.get_full_name }}</div>
+                            <div style="font-size:12px; color:var(--text-3);">{{ sub.lecturer.userprofile.employee_id|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color:var(--text-2); margin-bottom:12px;">
+                        <i class="fas fa-envelope me-1"></i>{{ sub.lecturer.email|default:"No email" }}
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <a href="{% url 'admin_lecturer_detail' sub.lecturer.id %}" class="btn-primary-academic" style="flex:1; justify-content:center; font-size:12px; padding:8px;">
+                            <i class="fas fa-user me-1"></i>View Profile
+                        </a>
+                        <a href="{% url 'admin_edit_subject' sub.id %}" class="btn-outline-academic" style="flex:1; justify-content:center; font-size:12px; padding:8px;">
+                            <i class="fas fa-exchange-alt me-1"></i>Reassign
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center; padding:20px; color:var(--text-3);">
+                        <i class="fas fa-user-slash" style="font-size:24px; margin-bottom:8px; display:block; color:#9b2c2c;"></i>
+                        <div style="font-size:13px; font-weight:600; color:#9b2c2c; margin-bottom:12px;">No Lecturer Assigned</div>
+                        <a href="{% url 'admin_edit_subject' sub.id %}" class="btn-primary-academic" style="font-size:12px; padding:8px 14px;">
+                            <i class="fas fa-user-plus me-1"></i>Assign Lecturer
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Enrolled students summary -->
+            <div class="card-academic mb-3">
+                <div class="card-academic-header">
+                    <i class="fas fa-users"></i> Enrolled Students
+                    <span style="margin-left:auto; background:var(--navy); color:white; font-size:11px; padding:1px 8px; border-radius:10px;">{{ enrolled_students|length }}</span>
+                </div>
+                <div style="max-height:300px; overflow-y:auto;">
+                {% if enrolled_students %}
+                    {% for enr in enrolled_students %}
+                    <div style="display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--border);">
+                        <div style="width:30px; height:30px; border-radius:50%; background:var(--navy-light); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--navy); flex-shrink:0;">
+                            {{ enr.student.first_name|first|upper }}{{ enr.student.last_name|first|upper }}
+                        </div>
+                        <div>
+                            <div style="font-size:13px; font-weight:600;">{{ enr.student.get_full_name }}</div>
+                            <div style="font-size:11px; color:var(--text-3);">{{ enr.student.userprofile.student_id|default:"—" }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding:24px; text-align:center; color:var(--text-3); font-size:13px;">
+                        No students enrolled in this semester's class yet.
+                    </div>
+                {% endif %}
+                </div>
+                {% if enrolled_students %}
+                <div style="padding:10px 14px; border-top:1px solid var(--border); text-align:center;">
+                    <a href="{% url 'admin_manage_enrollments' %}?semester={{ sub.semester_id }}" style="font-size:12px; color:var(--navy); text-decoration:none; font-weight:600;">
+                        <i class="fas fa-users me-1"></i>Manage Enrollment
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

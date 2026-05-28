@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}QR Attendance — {{ replacement.subject.subject_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.qr-wrap { text-align: center; padding: 12px 0; }
+.qr-wrap img {
+    border-radius: var(--radius); border: 1px solid var(--border);
+    max-width: 240px; width: 100%;
+    box-shadow: var(--shadow-sm);
+}
+
+.session-badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 16px; border-radius: 20px;
+    font-weight: 700; font-size: 13px; margin-bottom: 14px;
+}
+.badge-session-active   { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.badge-session-inactive { background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.detail-item label { font-size: 11px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; display: block; margin-bottom: 2px; }
+.detail-item span  { font-size: 14px; color: var(--text-1); font-weight: 600; }
+
+.url-box {
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 12px;
+    font-size: 12px; color: var(--text-3); word-break: break-all; margin-top: 10px;
+    font-family: monospace;
+}
+
+.counter-box {
+    background: var(--navy); border-radius: var(--radius);
+    color: white; padding: 18px; margin-bottom: 18px; text-align: center;
+}
+.counter-box .num { font-size: 48px; font-weight: 900; line-height: 1; }
+.counter-box .lbl { font-size: 12px; opacity: .8; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+
+.btn-toggle {
+    display: block; width: 100%; padding: 11px;
+    border-radius: var(--radius); border: none;
+    font-weight: 700; font-size: 14px; cursor: pointer; transition: all .2s;
+}
+.btn-toggle-off { background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; }
+.btn-toggle-off:hover { background: #9b2c2c; color: white; }
+.btn-toggle-on  { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.btn-toggle-on:hover  { background: #276749; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-qrcode me-2" style="color:#b7791f;"></i>QR Attendance</h1>
+            <p>{{ replacement.subject.subject_name }} &mdash; {{ replacement.replacement_date }} {{ replacement.replacement_time_slot }}</p>
+        </div>
+        <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left: QR Code + controls -->
+        <div class="col-lg-5">
+            <div class="card-academic mb-3">
+                <div class="card-academic-header"><i class="fas fa-qrcode"></i> Scan QR Code</div>
+                <div class="card-academic-body">
+                    <div class="text-center mb-3">
+                        {% if session.is_active %}
+                            <span class="session-badge badge-session-active">
+                                <i class="fas fa-circle" style="font-size:7px;"></i> Session Active
+                            </span>
+                        {% else %}
+                            <span class="session-badge badge-session-inactive">
+                                <i class="fas fa-circle" style="font-size:7px;"></i> Session Closed
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="qr-wrap">
+                        <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code">
+                        <p class="mt-3" style="font-size:12px; color:var(--text-3);">Students scan this with their phone camera or browser</p>
+                    </div>
+
+                    <div class="url-box">
+                        <i class="fas fa-link me-1"></i> {{ scan_url }}
+                    </div>
+
+                    <form method="post" action="{% url 'lecturer_toggle_qr_session' session.id %}" class="mt-3">
+                        {% csrf_token %}
+                        {% if session.is_active %}
+                            <button type="submit" class="btn-toggle btn-toggle-off">
+                                <i class="fas fa-stop-circle me-1"></i> Close QR Session
+                            </button>
+                        {% else %}
+                            <button type="submit" class="btn-toggle btn-toggle-on">
+                                <i class="fas fa-play-circle me-1"></i> Reopen QR Session
+                            </button>
+                        {% endif %}
+                    </form>
+
+                    <div class="mt-3 text-center" style="font-size:12px; color:var(--text-3);">
+                        <i class="fas fa-clock me-1"></i> Expires: {{ session.expires_at|date:"d M Y, H:i" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Info -->
+            <div class="card-academic">
+                <div class="card-academic-header"><i class="fas fa-info-circle"></i> Class Details</div>
+                <div class="card-academic-body">
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Subject Code</label>
+                            <span>{{ replacement.subject.subject_code }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Date</label>
+                            <span>{{ replacement.replacement_date }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Time</label>
+                            <span>{{ replacement.replacement_time_slot }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Venue</label>
+                            <span>{{ replacement.venue.venue_name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Attendance list -->
+        <div class="col-lg-7">
+            <div class="card-academic">
+                <div class="card-academic-header"><i class="fas fa-list-check"></i> Attendance</div>
+                <div class="card-academic-body">
+                    <div class="counter-box">
+                        <div class="num" id="presentCount">{{ total_present }}</div>
+                        <div class="lbl">Students Present</div>
+                    </div>
+
+                    {% if attendance_records %}
+                    <div style="overflow-x:auto;">
+                        <table class="table-academic">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student Name</th>
+                                    <th>Username</th>
+                                    <th>Scanned At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceBody">
+                                {% for record in attendance_records %}
+                                <tr>
+                                    <td style="color:var(--text-3); font-size:12px;">{{ forloop.counter }}</td>
+                                    <td style="font-weight:600;">{{ record.student.get_full_name }}</td>
+                                    <td style="color:var(--text-3); font-size:13px;">{{ record.student.username }}</td>
+                                    <td style="color:var(--text-3); font-size:12px;">{{ record.scanned_at|date:"d M Y, H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center; padding:40px 20px; color:var(--text-3);">
+                        <i class="fas fa-user-clock" style="font-size:40px; opacity:.2; display:block; margin-bottom:12px;"></i>
+                        <div style="font-size:14px; font-weight:600; margin-bottom:4px;">No students have scanned yet.</div>
+                        <small>This page refreshes automatically every 15 seconds.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    setTimeout(() => location.reload(), 15000);
+</script>
+{% endblock %}

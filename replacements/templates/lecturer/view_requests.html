@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My Requests — Lecturer{% endblock %}
+
+{% block extra_css %}
+<style>
+.request-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.request-card.pending  { border-left-color: #b7791f; }
+.request-card.approved { border-left-color: #276749; }
+.request-card.rejected { border-left-color: #9b2c2c; }
+.request-card:hover { box-shadow: var(--shadow-sm); }
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin: 10px 0;
+}
+.detail-item { font-size: 12px; color: var(--text-3); }
+.detail-item strong { display: block; font-size: 13px; color: var(--text-1); font-weight: 600; }
+
+.reason-strip {
+    background: var(--page-bg);
+    border-left: 3px solid var(--navy);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 8px 12px; font-size: 13px; color: var(--text-2);
+    margin-top: 10px;
+}
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.empty-state i { font-size: 40px; opacity: .2; margin-bottom: 14px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-clipboard-list me-2" style="color:#b7791f;"></i>My Requests</h1>
+            <p>Track all your class replacement requests and their current status.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i> Dashboard
+            </a>
+            <a href="{% url 'lecturer_create_request' %}" class="btn-primary-academic">
+                <i class="fas fa-plus me-1"></i> New Request
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card-academic mb-0">
+        <div class="card-academic-header"><i class="fas fa-filter"></i> Filter by Status</div>
+        <div class="card-academic-body" style="padding-bottom:0;">
+            <ul class="nav nav-tabs-academic" id="reqTabs">
+                <li class="nav-item">
+                    <button class="nav-link active" onclick="switchTab('pending', this)">
+                        <i class="fas fa-hourglass-half me-1"></i> Pending
+                        <span class="badge-pending ms-1" style="font-size:11px;">{{ pending.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchTab('approved', this)">
+                        <i class="fas fa-check-circle me-1"></i> Approved
+                        <span class="badge-approved ms-1" style="font-size:11px;">{{ approved.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchTab('rejected', this)">
+                        <i class="fas fa-times-circle me-1"></i> Rejected
+                        <span class="badge-rejected ms-1" style="font-size:11px;">{{ rejected.count }}</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="mt-3">
+
+        <!-- Pending -->
+        <div id="tab-pending">
+            {% if pending %}
+                {% for req in pending %}
+                <div class="request-card pending">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <span class="badge-pending">Pending Review</span>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item"><strong>{{ req.original_date|date:"d M Y" }}</strong>Original Date</div>
+                        <div class="detail-item"><strong>{{ req.original_time_slot }}</strong>Original Time</div>
+                        <div class="detail-item"><strong>{{ req.replacement_date|date:"d M Y" }}</strong>Replacement Date</div>
+                        <div class="detail-item"><strong>{{ req.replacement_time_slot }}</strong>Replacement Time</div>
+                        <div class="detail-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        <div class="detail-item"><strong>{{ req.venue.location }}</strong>Location</div>
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="card-academic"><div class="card-academic-body">
+                <div class="empty-state"><i class="fas fa-inbox"></i><p>No pending requests at the moment.</p></div>
+            </div></div>
+            {% endif %}
+        </div>
+
+        <!-- Approved -->
+        <div id="tab-approved" style="display:none;">
+            {% if approved %}
+                {% for req in approved %}
+                <div class="request-card approved">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span class="badge-approved">Approved</span>
+                            <a href="{% url 'lecturer_generate_qr' req.id %}" class="btn-primary-academic" style="font-size:12px; padding:5px 12px;">
+                                <i class="fas fa-qrcode me-1"></i>QR
+                            </a>
+                        </div>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item"><strong>{{ req.original_date|date:"d M Y" }}</strong>Original Date</div>
+                        <div class="detail-item"><strong>{{ req.original_time_slot }}</strong>Original Time</div>
+                        <div class="detail-item"><strong>{{ req.replacement_date|date:"d M Y" }}</strong>Replacement Date</div>
+                        <div class="detail-item"><strong>{{ req.replacement_time_slot }}</strong>Replacement Time</div>
+                        <div class="detail-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        {% if req.approved_by %}<div class="detail-item"><strong>{{ req.approved_by.get_full_name }}</strong>Approved By</div>{% endif %}
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="card-academic"><div class="card-academic-body">
+                <div class="empty-state"><i class="fas fa-check-circle"></i><p>No approved requests yet.</p></div>
+            </div></div>
+            {% endif %}
+        </div>
+
+        <!-- Rejected -->
+        <div id="tab-rejected" style="display:none;">
+            {% if rejected %}
+                {% for req in rejected %}
+                <div class="request-card rejected">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <span class="badge-rejected">Rejected</span>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item"><strong>{{ req.original_date|date:"d M Y" }}</strong>Original Date</div>
+                        <div class="detail-item"><strong>{{ req.original_time_slot }}</strong>Original Time</div>
+                        <div class="detail-item"><strong>{{ req.replacement_date|date:"d M Y" }}</strong>Replacement Date</div>
+                        <div class="detail-item"><strong>{{ req.replacement_time_slot }}</strong>Replacement Time</div>
+                        <div class="detail-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        <div class="detail-item"><strong>{{ req.updated_at|date:"d M Y" }}</strong>Rejected On</div>
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="card-academic"><div class="card-academic-body">
+                <div class="empty-state"><i class="fas fa-times-circle"></i><p>No rejected requests.</p></div>
+            </div></div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(name, btn) {
+    ['pending','approved','rejected'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = 'none';
+    });
+    document.getElementById('tab-' + name).style.display = 'block';
+    document.querySelectorAll('#reqTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

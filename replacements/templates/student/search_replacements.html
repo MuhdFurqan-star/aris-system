@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Search Class Replacements{% endblock %}
+
+{% block extra_css %}
+<style>
+.replacement-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--navy);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: border-color .2s, box-shadow .2s;
+}
+.replacement-card:hover { box-shadow: var(--shadow-sm); }
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px; margin-top: 10px;
+}
+.info-item { font-size: 12px; color: var(--text-3); }
+.info-item strong { display: block; font-size: 13px; color: var(--text-1); font-weight: 600; }
+
+.bookmark-btn {
+    position: absolute; top: 14px; right: 14px;
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; padding: 4px;
+    transition: transform .2s;
+}
+.bookmark-btn:hover { transform: scale(1.2); }
+.bookmark-btn.bookmarked { color: var(--gold); }
+.bookmark-btn.not-bookmarked { color: var(--border); }
+
+.date-tab-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.date-tab {
+    flex: 1; padding: 10px; background: var(--page-bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 13px; font-weight: 600; color: var(--text-2);
+    cursor: pointer; text-align: center; transition: background .2s, color .2s, border-color .2s;
+}
+.date-tab:hover { border-color: var(--navy); color: var(--navy); }
+.date-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.empty-state i { font-size: 40px; opacity: .2; margin-bottom: 14px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-search me-2" style="color:#b7791f;"></i>Search Class Replacements</h1>
+            <p>Find and bookmark approved class replacement sessions.</p>
+        </div>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <!-- Search & filter -->
+    <div class="card-academic mb-4">
+        <div class="card-academic-header"><i class="fas fa-filter"></i> Search &amp; Filter</div>
+        <div class="card-academic-body">
+            <form method="get" action="">
+                <div class="mb-3" style="position:relative;">
+                    <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-3); font-size:13px;"></i>
+                    <input type="text" name="search" class="form-field" style="padding-left:34px; width:100%;"
+                           placeholder="Search by subject code, subject name, lecturer, or venue…"
+                           value="{{ search_query }}">
+                </div>
+
+                <div class="date-tab-bar">
+                    <button type="submit" name="date_filter" value="upcoming"
+                            class="date-tab {% if date_filter == 'upcoming' or not date_filter %}active{% endif %}">
+                        <i class="fas fa-calendar-alt me-1"></i>Upcoming
+                    </button>
+                    <button type="submit" name="date_filter" value="past"
+                            class="date-tab {% if date_filter == 'past' %}active{% endif %}">
+                        <i class="fas fa-history me-1"></i>Past
+                    </button>
+                    <button type="submit" name="date_filter" value="all"
+                            class="date-tab {% if date_filter == 'all' %}active{% endif %}">
+                        <i class="fas fa-list me-1"></i>All
+                    </button>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                    <div style="flex:1; min-width:200px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Semester &amp; Class</div>
+                        <select name="semester" class="form-field" style="width:100%;">
+                            <option value="">All Semesters</option>
+                            {% for semester in semesters %}
+                            <option value="{{ semester.id }}" {% if selected_semester == semester.id|stringformat:"s" %}selected{% endif %}>
+                                Semester {{ semester.name }} — Class {{ semester.class_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary-academic" style="padding:8px 20px; align-self:flex-end;">
+                        <i class="fas fa-search me-1"></i>Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">Search Results</span>
+        <span style="font-size:13px; color:var(--text-3); margin-left:8px;">{{ replacements.count }} replacement(s) found</span>
+    </div>
+
+    {% if replacements %}
+        {% for replacement in replacements %}
+        <div class="replacement-card">
+            <button class="bookmark-btn {% if replacement.id in bookmarked_ids %}bookmarked{% else %}not-bookmarked{% endif %}"
+                    data-replacement-id="{{ replacement.id }}"
+                    data-bookmarked="{% if replacement.id in bookmarked_ids %}true{% else %}false{% endif %}"
+                    title="{% if replacement.id in bookmarked_ids %}Remove bookmark{% else %}Add bookmark{% endif %}">
+                <i class="fas fa-star"></i>
+            </button>
+            <div style="padding-right:36px;">
+                <div style="font-size:15px; font-weight:700; color:var(--text-1); margin-bottom:2px;">
+                    {{ replacement.subject.subject_code }} — {{ replacement.subject.subject_name }}
+                </div>
+                <div style="font-size:12px; color:var(--text-3);">
+                    Semester {{ replacement.subject.semester.name }} · Class {{ replacement.subject.semester.class_name }}
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong><i class="fas fa-chalkboard-teacher me-1" style="color:var(--navy); font-size:11px;"></i>{{ replacement.lecturer.get_full_name }}</strong>Lecturer
+                </div>
+                <div class="info-item">
+                    <strong><i class="fas fa-calendar-alt me-1" style="color:var(--navy); font-size:11px;"></i>{{ replacement.replacement_date|date:"d M Y" }}</strong>Date
+                </div>
+                <div class="info-item">
+                    <strong><i class="fas fa-clock me-1" style="color:var(--navy); font-size:11px;"></i>{{ replacement.replacement_time_slot }}</strong>Time
+                </div>
+                <div class="info-item">
+                    <strong><i class="fas fa-building me-1" style="color:var(--navy); font-size:11px;"></i>{{ replacement.venue.venue_name }}</strong>Venue
+                </div>
+                <div class="info-item">
+                    <strong><i class="fas fa-map-marker-alt me-1" style="color:var(--navy); font-size:11px;"></i>{{ replacement.venue.location }}</strong>Location
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="card-academic">
+        <div class="card-academic-body">
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <div style="font-size:15px; font-weight:600; margin-bottom:6px;">No Results Found</div>
+                <p style="font-size:13px;">Try adjusting your search terms or filters.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) v = decodeURIComponent(c.slice(name.length + 1));
+        });
+    }
+    return v;
+}
+
+document.querySelectorAll('.bookmark-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const id = this.dataset.replacementId;
+        const wasBookmarked = this.dataset.bookmarked === 'true';
+        this.disabled = true;
+        fetch(`/student/bookmark/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const nowBookmarked = data.bookmarked || data.status === 'added';
+            this.classList.toggle('bookmarked', nowBookmarked);
+            this.classList.toggle('not-bookmarked', !nowBookmarked);
+            this.dataset.bookmarked = nowBookmarked ? 'true' : 'false';
+            this.title = nowBookmarked ? 'Remove bookmark' : 'Add bookmark';
+        })
+        .catch(() => {})
+        .finally(() => { this.disabled = false; });
+    });
+});
+</script>
+{% endblock %}

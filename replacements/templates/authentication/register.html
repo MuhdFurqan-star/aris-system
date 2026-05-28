@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+{% block title %}Register — ARIS{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #f0f4f8 !important; }
+    .register-wrap {
+        max-width: 680px;
+        margin: 32px auto;
+        padding: 0 16px 48px;
+    }
+    .register-header {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+    .register-header h1 {
+        font-family: 'Merriweather', serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 4px;
+    }
+    .register-header p { font-size: 13px; color: var(--text-2); margin: 0; }
+
+    .reg-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+    .reg-card-header {
+        background: var(--navy);
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .reg-card-header i { color: #b7791f; }
+    .reg-card-body { padding: 28px 32px; }
+
+    /* Role picker */
+    .role-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 28px;
+    }
+    .role-option {
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .2s, background .2s;
+        position: relative;
+    }
+    .role-option input[type=radio] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .role-option i { font-size: 28px; color: var(--text-3); display: block; margin-bottom: 8px; transition: color .2s; }
+    .role-option span { font-size: 13px; font-weight: 600; color: var(--text-2); }
+    .role-option:hover { border-color: var(--navy); background: var(--navy-light); }
+    .role-option.selected { border-color: var(--navy); background: var(--navy-light); }
+    .role-option.selected i { color: var(--navy); }
+    .role-option.selected span { color: var(--navy); }
+
+    /* Conditional sections */
+    .conditional-section {
+        display: none;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        background: var(--navy-light);
+        margin-bottom: 20px;
+    }
+    .conditional-section.visible { display: block; }
+    .conditional-section .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--navy);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } .role-grid { grid-template-columns: 1fr; } }
+
+    .btn-register {
+        width: 100%;
+        padding: 13px;
+        background: var(--navy);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        transition: background .2s, box-shadow .2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .btn-register:hover { background: var(--navy-mid); box-shadow: var(--shadow-md); }
+
+    .error-msg { color: #9b2c2c; font-size: 12px; margin-top: 4px; }
+    .help-text  { color: var(--text-3); font-size: 12px; margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="register-wrap">
+    <div class="register-header">
+        <h1>Create an Account</h1>
+        <p>Register for access to ARIS — Academic Replacement Intelligence System</p>
+    </div>
+
+    <div class="reg-card">
+        <div class="reg-card-header">
+            <i class="fas fa-user-plus"></i>
+            Account Registration Form
+        </div>
+        <div class="reg-card-body">
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger mb-4">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <form method="POST" id="registrationForm">
+                {% csrf_token %}
+
+                <!-- Role selection -->
+                <div class="form-label mb-2">Select Your Role <span style="color:#9b2c2c;">*</span></div>
+                <div class="role-grid" id="roleGrid">
+                    <label class="role-option" for="role_student">
+                        <input type="radio" name="user_type" id="role_student" value="student">
+                        <i class="fas fa-user-graduate"></i>
+                        <span>Student</span>
+                    </label>
+                    <label class="role-option" for="role_lecturer">
+                        <input type="radio" name="user_type" id="role_lecturer" value="lecturer">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Lecturer</span>
+                    </label>
+                    <label class="role-option" for="role_admin">
+                        <input type="radio" name="user_type" id="role_admin" value="admin">
+                        <i class="fas fa-user-shield"></i>
+                        <span>Administrator</span>
+                    </label>
+                </div>
+                {% if form.user_type.errors %}<div class="error-msg">{{ form.user_type.errors }}</div>{% endif %}
+
+                <!-- Personal info -->
+                <div class="field-row mb-3">
+                    <div>
+                        <label class="form-label" for="{{ form.first_name.id_for_label }}">First Name <span style="color:#9b2c2c;">*</span></label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<div class="error-msg">{{ form.first_name.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" for="{{ form.last_name.id_for_label }}">Last Name <span style="color:#9b2c2c;">*</span></label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<div class="error-msg">{{ form.last_name.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Username <span style="color:#9b2c2c;">*</span></label>
+                    {{ form.username }}
+                    {% if form.username.errors %}<div class="error-msg">{{ form.username.errors }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email Address <span style="color:#9b2c2c;">*</span></label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<div class="error-msg">{{ form.email.errors }}</div>{% endif %}
+                </div>
+
+                <!-- Student section -->
+                <div class="conditional-section" id="section_student">
+                    <div class="section-label"><i class="fas fa-id-card"></i> Student Information</div>
+                    <div>
+                        <label class="form-label">Student ID <span style="color:#9b2c2c;">*</span></label>
+                        {{ form.student_id }}
+                        {% if form.student_id.errors %}<div class="error-msg">{{ form.student_id.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <!-- Lecturer section -->
+                <div class="conditional-section" id="section_lecturer">
+                    <div class="section-label"><i class="fas fa-id-badge"></i> Lecturer Information</div>
+                    <div class="field-row">
+                        <div>
+                            <label class="form-label">Employee ID <span style="color:#9b2c2c;">*</span></label>
+                            {{ form.employee_id }}
+                            {% if form.employee_id.errors %}<div class="error-msg">{{ form.employee_id.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label class="form-label">Lecturer Access Code <span style="color:#9b2c2c;">*</span></label>
+                            {{ form.lecturer_code }}
+                            <div class="help-text"><i class="fas fa-lock fa-xs"></i> Provided by your institution</div>
+                            {% if form.lecturer_code.errors %}<div class="error-msg">{{ form.lecturer_code.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin section -->
+                <div class="conditional-section" id="section_admin">
+                    <div class="section-label"><i class="fas fa-shield-alt"></i> Administrator Information</div>
+                    <div class="field-row">
+                        <div>
+                            <label class="form-label">Admin ID <span style="color:#9b2c2c;">*</span></label>
+                            {{ form.admin_id }}
+                            {% if form.admin_id.errors %}<div class="error-msg">{{ form.admin_id.errors }}</div>{% endif %}
+                        </div>
+                        <div>
+                            <label class="form-label">Admin Access Code <span style="color:#9b2c2c;">*</span></label>
+                            {{ form.admin_code }}
+                            <div class="help-text"><i class="fas fa-lock fa-xs"></i> Provided by system administrator</div>
+                            {% if form.admin_code.errors %}<div class="error-msg">{{ form.admin_code.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="field-row mb-3">
+                    <div>
+                        <label class="form-label">Password <span style="color:#9b2c2c;">*</span></label>
+                        {{ form.password1 }}
+                        <div class="help-text">Minimum 8 characters</div>
+                        {% if form.password1.errors %}<div class="error-msg">{{ form.password1.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label">Confirm Password <span style="color:#9b2c2c;">*</span></label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}<div class="error-msg">{{ form.password2.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-register">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+
+                <p style="text-align:center; margin-top:18px; font-size:13px; color:var(--text-2);">
+                    Already have an account?
+                    <a href="{% url 'login' %}" style="color:var(--navy); font-weight:600; text-decoration:none;">Sign in here</a>
+                </p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const radios   = document.querySelectorAll('input[name="user_type"]');
+    const options  = document.querySelectorAll('.role-option');
+    const sections = { student: 'section_student', lecturer: 'section_lecturer', admin: 'section_admin' };
+
+    function updateUI(val) {
+        options.forEach(o => {
+            const inp = o.querySelector('input');
+            o.classList.toggle('selected', inp.value === val);
+        });
+        Object.entries(sections).forEach(([role, id]) => {
+            document.getElementById(id).classList.toggle('visible', role === val);
+        });
+    }
+
+    options.forEach(opt => {
+        opt.addEventListener('click', () => {
+            const inp = opt.querySelector('input');
+            inp.checked = true;
+            updateUI(inp.value);
+        });
+    });
+
+    // Restore if validation failed on server
+    const checked = document.querySelector('input[name="user_type"]:checked');
+    if (checked) updateUI(checked.value);
+</script>
+{% endblock %}

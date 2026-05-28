@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Resolve Issue{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:700px; margin:0 auto;">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-check-circle me-2" style="color:#b7791f;"></i>Resolve Issue</h1>
+            <p>Mark this venue issue as resolved after maintenance has addressed it.</p>
+        </div>
+        <a href="{% url 'admin_view_feedback' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <!-- Issue summary -->
+    <div class="card-academic mb-4">
+        <div class="card-academic-header">
+            <i class="fas fa-clipboard"></i> Issue Details
+        </div>
+        <div class="card-academic-body">
+            <div style="background:var(--page-bg); border-left:4px solid var(--navy); border-radius:0 var(--radius) var(--radius) 0; padding:14px 18px;">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                    <div>
+                        <div class="form-label" style="font-size:11px;">Venue</div>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-1);">
+                            <i class="fas fa-building me-1" style="color:var(--navy);"></i>
+                            {{ feedback.venue.venue_name }} — {{ feedback.venue.location }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-label" style="font-size:11px;">Severity</div>
+                        {% if feedback.issue_status == 'critical' %}
+                            <span class="badge-rejected">Critical</span>
+                        {% elif feedback.issue_status == 'moderate' %}
+                            <span class="badge-pending">Moderate</span>
+                        {% else %}
+                            <span class="badge-approved">Solved</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="form-label" style="font-size:11px;">Reported By</div>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-1);">
+                            <i class="fas fa-chalkboard-teacher me-1" style="color:var(--navy);"></i>
+                            {{ feedback.lecturer.get_full_name }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-label" style="font-size:11px;">Report Date</div>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-1);">
+                            <i class="fas fa-calendar me-1" style="color:var(--navy);"></i>
+                            {{ feedback.created_at|date:"d M Y, H:i" }}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+                    <div class="form-label" style="font-size:11px;">Issue Description</div>
+                    <div style="font-size:13px; color:var(--text-2); line-height:1.6; white-space:pre-line;">{{ feedback.feedback_text }}</div>
+                </div>
+
+                {% if feedback.image %}
+                <div style="margin-top:12px;">
+                    <div class="form-label" style="font-size:11px;">Photo Evidence</div>
+                    <img src="{{ feedback.image.url }}" alt="Issue Photo"
+                         style="max-width:100%; border-radius:var(--radius); border:1px solid var(--border); cursor:pointer;"
+                         onclick="window.open('{{ feedback.image.url }}', '_blank')">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Resolution form -->
+    <div class="card-academic">
+        <div class="card-academic-header"><i class="fas fa-tools"></i> Resolution</div>
+        <div class="card-academic-body">
+            <div style="background:#f0fff4; border:1px solid #c6f6d5; border-radius:var(--radius); padding:10px 14px; font-size:13px; color:#276749; margin-bottom:18px;">
+                <i class="fas fa-info-circle me-1"></i>
+                Add resolution notes to document what was done to fix the issue, then confirm.
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Resolution Notes (Optional)</label>
+                    <textarea name="resolution_notes" class="form-field" style="width:100%; min-height:110px; resize:vertical;"
+                        placeholder="Describe what was done to fix the issue (e.g., Replaced projector bulb, Fixed air conditioning, Cleaned venue)…"></textarea>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button type="submit" class="btn-primary-academic" style="background:#276749; flex:1; justify-content:center; padding:12px;">
+                        <i class="fas fa-check me-1"></i>Mark as Resolved
+                    </button>
+                    <a href="{% url 'admin_view_feedback' %}" class="btn-outline-academic" style="flex:1; justify-content:center; padding:12px;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

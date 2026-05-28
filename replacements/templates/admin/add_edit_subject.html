@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'add' %}Add Subject{% else %}Edit Subject{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.hours-preview {
+    background: var(--navy-light); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-top: 14px;
+}
+.hours-preview-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.hours-preview-item { text-align: center; }
+.hours-preview-item .num { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; }
+.hours-preview-item .lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:720px; margin:0 auto;">
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-book me-2" style="color:#b7791f;"></i>
+                {% if mode == 'add' %}Add Subject{% else %}Edit Subject{% endif %}
+            </h1>
+            {% if mode == 'edit' %}
+            <p>Editing: <strong>{{ sub.subject_code }} — {{ sub.subject_name }}</strong></p>
+            {% endif %}
+        </div>
+        <a href="{% url 'admin_manage_subjects' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    <form method="POST">
+    {% csrf_token %}
+
+    <!-- ── Basic Info ─────────────────────────────────────────────────────── -->
+    <div class="card-academic mb-3">
+        <div class="card-academic-header"><i class="fas fa-info-circle"></i> Basic Information</div>
+        <div class="card-academic-body">
+
+            <div class="mb-3">
+                <label class="form-label">Semester / Class <span style="color:#9b2c2c;">*</span></label>
+                <select name="semester" class="form-field" required>
+                    <option value="">— Select Semester —</option>
+                    {% for sem in semesters %}
+                    <option value="{{ sem.id }}"
+                        {% if mode == 'edit' and sub.semester_id == sem.id %}selected
+                        {% elif preselect_semester == sem.id|stringformat:"s" %}selected{% endif %}>
+                        [{{ sem.course }}] Sem {{ sem.name }} — Class {{ sem.class_name }}
+                        {% if not sem.is_active %}(Inactive){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">Subject Code <span style="color:#9b2c2c;">*</span></label>
+                    <input type="text" name="subject_code" class="form-field" required
+                           value="{{ sub.subject_code|default:'' }}"
+                           placeholder="e.g. CS201" id="subjectCodeInput">
+                </div>
+                <div class="col-sm-8">
+                    <label class="form-label">Subject Name <span style="color:#9b2c2c;">*</span></label>
+                    <input type="text" name="subject_name" class="form-field" required
+                           value="{{ sub.subject_name|default:'' }}"
+                           placeholder="e.g. Data Structures and Algorithms">
+                </div>
+            </div>
+
+            <div class="mb-0">
+                <label class="form-label">Description / Syllabus Summary <span style="font-size:11px; color:var(--text-3); font-weight:400;">(optional)</span></label>
+                <textarea name="description" class="form-field" rows="3"
+                          style="resize:vertical; min-height:80px;"
+                          placeholder="Brief overview of topics, learning outcomes, or notes for this subject.">{{ sub.description|default:'' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Academic Hours ─────────────────────────────────────────────────── -->
+    <div class="card-academic mb-3">
+        <div class="card-academic-header"><i class="fas fa-clock"></i> Academic Hours</div>
+        <div class="card-academic-body">
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">
+                        Credit Hours <span style="color:#9b2c2c;">*</span>
+                        <span data-tip="Credit hours awarded to students upon passing." style="cursor:help; color:var(--text-3);">
+                            <i class="fas fa-question-circle" style="font-size:11px;"></i>
+                        </span>
+                    </label>
+                    <input type="number" name="credit_hours" class="form-field hours-input" required
+                           min="1" max="20" value="{{ sub.credit_hours|default:3 }}"
+                           id="creditHours">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">
+                        Teaching Weeks <span style="color:#9b2c2c;">*</span>
+                        <span data-tip="Number of weeks of active teaching in the semester." style="cursor:help; color:var(--text-3);">
+                            <i class="fas fa-question-circle" style="font-size:11px;"></i>
+                        </span>
+                    </label>
+                    <input type="number" name="total_weeks" class="form-field hours-input" required
+                           min="1" max="52" value="{{ sub.total_weeks|default:14 }}"
+                           id="totalWeeks">
+                </div>
+            </div>
+
+            <div style="font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.4px;">
+                Contact Hours per Week
+            </div>
+            <div class="row g-3 mb-2">
+                <div class="col-sm-4">
+                    <label class="form-label">
+                        <i class="fas fa-chalkboard me-1" style="color:#2b6cb0;"></i>Lecture Hours
+                    </label>
+                    <input type="number" name="lecture_hours_per_week" class="form-field hours-input"
+                           min="0" max="40" value="{{ sub.lecture_hours_per_week|default:3 }}"
+                           id="lectureH">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">
+                        <i class="fas fa-comments me-1" style="color:#276749;"></i>Tutorial Hours
+                    </label>
+                    <input type="number" name="tutorial_hours_per_week" class="form-field hours-input"
+                           min="0" max="40" value="{{ sub.tutorial_hours_per_week|default:0 }}"
+                           id="tutorialH">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">
+                        <i class="fas fa-flask me-1" style="color:#975a16;"></i>Lab / Practical Hours
+                    </label>
+                    <input type="number" name="lab_hours_per_week" class="form-field hours-input"
+                           min="0" max="40" value="{{ sub.lab_hours_per_week|default:0 }}"
+                           id="labH">
+                </div>
+            </div>
+
+            <!-- Live hours preview -->
+            <div class="hours-preview" id="hoursPreview">
+                <div style="font-size:11px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px;">
+                    <i class="fas fa-calculator me-1"></i>Calculated Totals
+                </div>
+                <div class="hours-preview-row">
+                    <div class="hours-preview-item">
+                        <div class="num" id="prevContactPW">3</div>
+                        <div class="lbl">Contact hrs/week</div>
+                    </div>
+                    <div class="hours-preview-item">
+                        <div class="num" id="prevLecTotal">42</div>
+                        <div class="lbl">Total lecture hrs</div>
+                    </div>
+                    <div class="hours-preview-item">
+                        <div class="num" id="prevTutTotal">0</div>
+                        <div class="lbl">Total tutorial hrs</div>
+                    </div>
+                    <div class="hours-preview-item">
+                        <div class="num" id="prevLabTotal">0</div>
+                        <div class="lbl">Total lab hrs</div>
+                    </div>
+                    <div class="hours-preview-item" style="border-left:2px solid var(--border); padding-left:24px;">
+                        <div class="num" id="prevTotalContact" style="color:var(--gold);">42</div>
+                        <div class="lbl">Total contact hrs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Lecturer Assignment ────────────────────────────────────────────── -->
+    <div class="card-academic mb-3">
+        <div class="card-academic-header"><i class="fas fa-chalkboard-teacher"></i> Lecturer Assignment</div>
+        <div class="card-academic-body">
+
+            <!-- Quick search -->
+            <div class="mb-2">
+                <input type="text" id="lecturerSearch" class="form-field"
+                       placeholder="Type to filter lecturers…"
+                       style="padding:8px 12px; font-size:13px;">
+            </div>
+
+            <div class="mb-2">
+                <select name="lecturer" class="form-field" id="lecturerSelect" size="6"
+                        style="height:auto; min-height:140px;">
+                    <option value="">— No lecturer assigned —</option>
+                    {% for lec in lecturers %}
+                    <option value="{{ lec.id }}"
+                        {% if mode == 'edit' and sub.lecturer_id == lec.id %}selected{% endif %}>
+                        {{ lec.get_full_name }} · {{ lec.userprofile.employee_id|default:lec.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Selected lecturer preview -->
+            <div id="lecturerPreview" style="display:none; background:var(--navy-light); border-radius:var(--radius); padding:12px 14px; font-size:13px; margin-top:8px;">
+                <i class="fas fa-user-tie me-2" style="color:var(--navy);"></i>
+                <span id="lecturerPreviewName" style="font-weight:600; color:var(--navy);"></span>
+                <span style="color:var(--text-3); font-size:12px; margin-left:8px;">assigned</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-3); margin-top:8px;">
+                The assigned lecturer can submit replacement class requests for this subject.
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex; gap:10px;">
+        <button type="submit" class="btn-primary-academic" style="flex:1; justify-content:center; padding:12px;">
+            <i class="fas fa-{% if mode == 'add' %}plus{% else %}save{% endif %} me-1"></i>
+            {% if mode == 'add' %}Create Subject{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% url 'admin_manage_subjects' %}" class="btn-outline-academic" style="flex:1; justify-content:center; padding:12px;">
+            Cancel
+        </a>
+    </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Auto-uppercase subject code ──────────────────────────────────────────────
+document.getElementById('subjectCodeInput').addEventListener('input', function() {
+    const pos = this.selectionStart;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(pos, pos);
+});
+
+// ── Live hours calculator ────────────────────────────────────────────────────
+function updateHours() {
+    const lec  = parseInt(document.getElementById('lectureH').value)  || 0;
+    const tut  = parseInt(document.getElementById('tutorialH').value) || 0;
+    const lab  = parseInt(document.getElementById('labH').value)      || 0;
+    const wks  = parseInt(document.getElementById('totalWeeks').value)|| 0;
+    const cpw  = lec + tut + lab;
+    document.getElementById('prevContactPW').textContent  = cpw;
+    document.getElementById('prevLecTotal').textContent   = lec * wks;
+    document.getElementById('prevTutTotal').textContent   = tut * wks;
+    document.getElementById('prevLabTotal').textContent   = lab * wks;
+    document.getElementById('prevTotalContact').textContent = cpw * wks;
+}
+document.querySelectorAll('.hours-input').forEach(el => el.addEventListener('input', updateHours));
+updateHours();
+
+// ── Lecturer filter & preview ────────────────────────────────────────────────
+document.getElementById('lecturerSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    const sel = document.getElementById('lecturerSelect');
+    Array.from(sel.options).forEach(opt => {
+        opt.hidden = opt.value && !opt.text.toLowerCase().includes(q);
+    });
+});
+
+document.getElementById('lecturerSelect').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    const preview = document.getElementById('lecturerPreview');
+    if (opt.value) {
+        document.getElementById('lecturerPreviewName').textContent = opt.text;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+});
+// Trigger on load for edit mode
+const sel = document.getElementById('lecturerSelect');
+if (sel.value) sel.dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

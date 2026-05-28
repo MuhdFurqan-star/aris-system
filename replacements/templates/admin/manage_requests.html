@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Manage Replacement Requests{% endblock %}
+
+{% block extra_css %}
+<style>
+.request-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.request-row:hover { border-color: var(--navy); box-shadow: var(--shadow-sm); }
+
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+.meta-item { font-size: 12px; color: var(--text-2); }
+.meta-item strong { display: block; font-size: 13px; color: var(--text-1); font-weight: 600; }
+
+.reason-strip {
+    background: var(--page-bg);
+    border-left: 3px solid var(--navy);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 8px 12px;
+    font-size: 13px; color: var(--text-2);
+    margin-top: 10px;
+}
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.empty-state i { font-size: 40px; opacity: .2; margin-bottom: 14px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-clipboard-list me-2" style="color:#b7791f;"></i>Manage Replacement Requests</h1>
+            <p>Review, approve, or reject pending class replacement requests.</p>
+        </div>
+        <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-3" style="border-radius:var(--radius); font-size:13px; padding:10px 16px;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tabs -->
+    <div class="card-academic mb-0">
+        <div class="card-academic-header">
+            <i class="fas fa-filter"></i> Filter by Status
+        </div>
+        <div class="card-academic-body" style="padding-bottom:0;">
+            <ul class="nav nav-tabs-academic" id="reqTabs">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-pending">
+                        <i class="fas fa-hourglass-half me-1"></i> Pending
+                        <span class="badge-pending ms-1" style="font-size:11px;">{{ pending.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-approved">
+                        <i class="fas fa-check-circle me-1"></i> Approved
+                        <span class="badge-approved ms-1" style="font-size:11px;">{{ approved.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rejected">
+                        <i class="fas fa-times-circle me-1"></i> Rejected
+                        <span class="badge-rejected ms-1" style="font-size:11px;">{{ rejected.count }}</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="tab-content mt-3">
+
+        <!-- Pending -->
+        <div class="tab-pane fade show active" id="tab-pending">
+            {% if pending %}
+                {% for req in pending %}
+                <div class="request-row">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                            <span class="badge-pending">Pending</span>
+                            <a href="{% url 'admin_approve_request' req.id %}" class="btn-approve">
+                                <i class="fas fa-check"></i> Approve
+                            </a>
+                            <a href="{% url 'admin_reject_request' req.id %}" class="btn-reject">
+                                <i class="fas fa-times"></i> Reject
+                            </a>
+                        </div>
+                    </div>
+                    <div class="meta-grid">
+                        <div class="meta-item"><strong>{{ req.lecturer.get_full_name }}</strong>Lecturer</div>
+                        <div class="meta-item"><strong>{{ req.original_date|date:"d M Y" }} · {{ req.original_time_slot }}</strong>Original</div>
+                        <div class="meta-item"><strong>{{ req.replacement_date|date:"d M Y" }} · {{ req.replacement_time_slot }}</strong>Replacement</div>
+                        <div class="meta-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        <div class="meta-item"><strong>{{ req.created_at|date:"d M Y H:i" }}</strong>Submitted</div>
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No pending requests at the moment.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Approved -->
+        <div class="tab-pane fade" id="tab-approved">
+            {% if approved %}
+                {% for req in approved %}
+                <div class="request-row">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <span class="badge-approved">Approved</span>
+                    </div>
+                    <div class="meta-grid">
+                        <div class="meta-item"><strong>{{ req.lecturer.get_full_name }}</strong>Lecturer</div>
+                        <div class="meta-item"><strong>{{ req.original_date|date:"d M Y" }} · {{ req.original_time_slot }}</strong>Original</div>
+                        <div class="meta-item"><strong>{{ req.replacement_date|date:"d M Y" }} · {{ req.replacement_time_slot }}</strong>Replacement</div>
+                        <div class="meta-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        {% if req.approved_by %}<div class="meta-item"><strong>{{ req.approved_by.get_full_name }}</strong>Approved By</div>{% endif %}
+                        <div class="meta-item"><strong>{{ req.updated_at|date:"d M Y H:i" }}</strong>Approved On</div>
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <p>No approved requests yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Rejected -->
+        <div class="tab-pane fade" id="tab-rejected">
+            {% if rejected %}
+                {% for req in rejected %}
+                <div class="request-row">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                                {{ req.subject.subject_code }} — {{ req.subject.subject_name }}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-3);">
+                                Semester {{ req.subject.semester.name }} · Class {{ req.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <span class="badge-rejected">Rejected</span>
+                    </div>
+                    <div class="meta-grid">
+                        <div class="meta-item"><strong>{{ req.lecturer.get_full_name }}</strong>Lecturer</div>
+                        <div class="meta-item"><strong>{{ req.original_date|date:"d M Y" }} · {{ req.original_time_slot }}</strong>Original</div>
+                        <div class="meta-item"><strong>{{ req.replacement_date|date:"d M Y" }} · {{ req.replacement_time_slot }}</strong>Replacement</div>
+                        <div class="meta-item"><strong>{{ req.venue.venue_name }}</strong>Venue</div>
+                        <div class="meta-item"><strong>{{ req.updated_at|date:"d M Y H:i" }}</strong>Rejected On</div>
+                    </div>
+                    <div class="reason-strip"><i class="fas fa-align-left me-1"></i>{{ req.reason }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-times-circle"></i>
+                <p>No rejected requests.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

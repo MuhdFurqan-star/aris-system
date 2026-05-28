@@ -1,0 +1,527 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — ARIS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; }
+
+    /* ── Background layers (stack + crossfade) ─────────────────────────── */
+    .bg-stage {
+        position: fixed; inset: 0; z-index: 0;
+    }
+    .bg-layer {
+        position: absolute; inset: 0;
+        background-size: cover;
+        background-position: center center;
+        opacity: 0;
+        transition: opacity .9s cubic-bezier(.4,0,.2,1);
+    }
+    .bg-layer.visible { opacity: 1; }
+
+    #bg-default  { background-image: url("{% static 'images/default-bg.jpg' %}"); }
+    #bg-student  { background-image: url("{% static 'images/student-bg.jpg' %}"); }
+    #bg-lecturer { background-image: url("{% static 'images/staff-bg.jpg' %}"); }
+    #bg-admin    { background-image: url("{% static 'images/admin-bg.jpg' %}"); }
+
+    /* Gradient overlay — heavier on left for text readability */
+    .bg-overlay {
+        position: fixed; inset: 0; z-index: 1;
+        background: linear-gradient(
+            105deg,
+            rgba(10, 18, 35, 0.82) 0%,
+            rgba(10, 18, 35, 0.65) 45%,
+            rgba(10, 18, 35, 0.30) 100%
+        );
+    }
+
+    /* ── Page layout ───────────────────────────────────────────────────── */
+    .auth-wrap {
+        position: relative; z-index: 2;
+        display: flex; min-height: 100vh;
+    }
+
+    /* ── Left branding panel ───────────────────────────────────────────── */
+    .auth-left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 56px 60px;
+        color: white;
+        min-width: 0;
+    }
+    .auth-logo {
+        width: 240px; height: 240px;
+        object-fit: contain;
+        margin-bottom: 30px;
+        filter: drop-shadow(0 12px 40px rgba(0,0,0,.45));
+    }
+    .auth-headline {
+        font-family: 'Merriweather', serif;
+        font-size: 72px; font-weight: 900; line-height: 1;
+        letter-spacing: -2px; color: #fff;
+        margin: 0 0 6px;
+    }
+    .auth-kpm {
+        font-size: 12px; color: #b7791f;
+        letter-spacing: 2px; text-transform: uppercase;
+        font-weight: 700; margin-bottom: 14px;
+    }
+    .auth-gold-bar {
+        width: 56px; height: 3px; background: #b7791f;
+        border-radius: 2px;
+    }
+
+    /* ── Right form panel ──────────────────────────────────────────────── */
+    .auth-right {
+        width: 480px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        padding: 32px 24px;
+        background: rgba(255,255,255,.04);
+        backdrop-filter: blur(2px);
+    }
+
+    .auth-card {
+        width: 100%; max-width: 400px;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(0,0,0,.35), 0 4px 16px rgba(0,0,0,.15);
+        overflow: hidden;
+        animation: slideUp .55s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(28px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card top accent bar — changes per role */
+    .card-accent {
+        height: 4px;
+        background: #1e3a5f;
+        transition: background .6s ease;
+    }
+    .card-accent.student  { background: linear-gradient(90deg, #1e3a5f, #2c5282); }
+    .card-accent.lecturer { background: linear-gradient(90deg, #276749, #2f855a); }
+    .card-accent.admin    { background: linear-gradient(90deg, #744210, #b7791f); }
+
+    .card-body { padding: 32px 36px 28px; }
+
+    .card-title {
+        font-family: 'Merriweather', serif;
+        font-size: 21px; font-weight: 700; color: #1a202c; margin-bottom: 4px;
+    }
+    .card-subtitle { font-size: 13px; color: #718096; margin-bottom: 26px; }
+
+    /* Role selector ── three cards */
+    .role-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 8px; margin-bottom: 24px;
+    }
+    .role-card {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 8px 10px;
+        text-align: center;
+        cursor: pointer;
+        background: #f8fafc;
+        transition: border-color .22s, background .22s, transform .18s, box-shadow .22s;
+        user-select: none;
+    }
+    .role-card:hover {
+        border-color: #cbd5e0;
+        background: #edf2f7;
+        transform: translateY(-1px);
+    }
+    .role-card.active {
+        border-color: #1e3a5f;
+        background: #ebf0f8;
+        box-shadow: 0 0 0 3px rgba(30,58,95,.1);
+        transform: translateY(-2px);
+    }
+    .role-card.active-lecturer {
+        border-color: #276749;
+        background: #f0fff4;
+        box-shadow: 0 0 0 3px rgba(39,103,73,.1);
+    }
+    .role-card.active-admin {
+        border-color: #b7791f;
+        background: #fffbeb;
+        box-shadow: 0 0 0 3px rgba(183,121,31,.1);
+    }
+    .role-icon {
+        font-size: 20px; color: #a0aec0;
+        margin-bottom: 6px;
+        transition: color .22s, transform .22s;
+        display: block;
+    }
+    .role-card.active .role-icon,
+    .role-card:hover .role-icon { transform: scale(1.12); }
+    .role-card.active .role-icon         { color: #1e3a5f; }
+    .role-card.active-lecturer .role-icon { color: #276749; }
+    .role-card.active-admin .role-icon    { color: #b7791f; }
+    .role-label {
+        font-size: 11.5px; font-weight: 600;
+        color: #4a5568; letter-spacing: .2px;
+        display: block;
+    }
+    .role-card.active         .role-label { color: #1e3a5f; }
+    .role-card.active-lecturer .role-label { color: #276749; }
+    .role-card.active-admin    .role-label { color: #b7791f; }
+
+    /* Hint text below role cards */
+    .role-hint {
+        font-size: 11px; color: #a0aec0; text-align: center;
+        margin-top: -14px; margin-bottom: 18px;
+        min-height: 16px;
+        transition: opacity .3s;
+    }
+
+    /* Form fields */
+    .field-group { margin-bottom: 16px; }
+    .field-label {
+        display: block; font-size: 11px; font-weight: 700;
+        color: #4a5568; text-transform: uppercase;
+        letter-spacing: .55px; margin-bottom: 6px;
+    }
+    .field-wrap { position: relative; }
+    .field-wrap i.field-icon {
+        position: absolute; left: 13px; top: 50%;
+        transform: translateY(-50%);
+        color: #a0aec0; font-size: 13px; pointer-events: none;
+    }
+    .field-input {
+        width: 100%; padding: 11px 14px 11px 38px;
+        border: 1.5px solid #e2e8f0; border-radius: 8px;
+        font-size: 14px; font-family: 'Inter', sans-serif;
+        color: #1a202c; background: #f8fafc;
+        transition: border-color .2s, box-shadow .2s, background .2s;
+        outline: none;
+    }
+    .field-input:focus {
+        border-color: #2c5282; background: #fff;
+        box-shadow: 0 0 0 3px rgba(44,82,130,.1);
+    }
+    .field-input:disabled {
+        opacity: .5; cursor: not-allowed;
+    }
+    .field-input::placeholder { color: #cbd5e0; }
+
+    /* Password toggle */
+    .pw-toggle {
+        position: absolute; right: 12px; top: 50%;
+        transform: translateY(-50%);
+        background: none; border: none;
+        color: #a0aec0; cursor: pointer;
+        padding: 4px; font-size: 13px;
+        transition: color .18s;
+    }
+    .pw-toggle:hover { color: #4a5568; }
+    .field-wrap .field-input.has-toggle { padding-right: 38px; }
+
+    /* Submit button */
+    .btn-signin {
+        width: 100%; padding: 12px 20px;
+        background: #1e3a5f; color: white; border: none;
+        border-radius: 8px; font-size: 14px; font-weight: 700;
+        font-family: 'Inter', sans-serif; letter-spacing: .2px;
+        cursor: pointer; margin-top: 6px;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        transition: background .2s, transform .18s, box-shadow .22s;
+        position: relative; overflow: hidden;
+    }
+    .btn-signin::after {
+        content: ''; position: absolute; inset: 0;
+        background: rgba(255,255,255,0);
+        transition: background .2s;
+    }
+    .btn-signin:hover {
+        background: #162e4a;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(30,58,95,.35);
+    }
+    .btn-signin:active { transform: translateY(0); box-shadow: none; }
+    .btn-signin:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .btn-signin.lecturer { background: #276749; }
+    .btn-signin.lecturer:hover { background: #22543d; box-shadow: 0 6px 20px rgba(39,103,73,.35); }
+    .btn-signin.admin { background: #b7791f; }
+    .btn-signin.admin:hover { background: #975a16; box-shadow: 0 6px 20px rgba(183,121,31,.35); }
+
+    /* Alerts */
+    .alert {
+        padding: 10px 14px; border-radius: 8px; font-size: 13px;
+        margin-bottom: 18px; border: 1px solid transparent;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .alert-danger  { background: #fff5f5; color: #9b2c2c; border-color: #fed7d7; }
+    .alert-success { background: #f0fff4; color: #276749; border-color: #c6f6d5; }
+    .alert-warning { background: #fffbeb; color: #975a16; border-color: #fbd38d; }
+
+    /* Footer link */
+    .auth-card-footer {
+        text-align: center; padding: 14px 36px 22px;
+        font-size: 13px; color: #718096;
+        border-top: 1px solid #f0f4f8;
+    }
+    .auth-card-footer a { color: #1e3a5f; font-weight: 600; text-decoration: none; }
+    .auth-card-footer a:hover { text-decoration: underline; }
+
+    /* Role select required warning */
+    .role-required-msg {
+        font-size: 12px; color: #c05621;
+        text-align: center; margin-bottom: 12px; display: none;
+    }
+    .role-required-msg.show { display: block; }
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+        .auth-left { display: none; }
+        .auth-right {
+            width: 100%; padding: 24px 16px;
+            background: transparent;
+        }
+        .auth-card {
+            box-shadow: 0 8px 40px rgba(0,0,0,.4);
+        }
+    }
+    @media (max-width: 480px) {
+        .card-body { padding: 24px 22px 20px; }
+        .auth-card-footer { padding: 12px 22px 18px; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ── Background layers ─────────────────────────────────────────────────── -->
+<div class="bg-stage">
+    <div class="bg-layer visible" id="bg-default"></div>
+    <div class="bg-layer" id="bg-student"></div>
+    <div class="bg-layer" id="bg-lecturer"></div>
+    <div class="bg-layer" id="bg-admin"></div>
+</div>
+<div class="bg-overlay"></div>
+
+<!-- ── Page wrap ─────────────────────────────────────────────────────────── -->
+<div class="auth-wrap">
+
+    <!-- Left branding -->
+    <div class="auth-left">
+        <img src="{% static 'images/LogoKPM.png' %}" alt="KPM Logo" class="auth-logo"
+             onerror="this.style.display='none'">
+        <h1 class="auth-headline">ARIS</h1>
+        <div style="font-family:'Merriweather',serif; font-size:18px; font-weight:700; color:rgba(255,255,255,.75); margin:0 0 10px; letter-spacing:.5px;">Academic Replacement<br>Intelligence System</div>
+        <div class="auth-kpm">Kolej Profesional MARA</div>
+        <div class="auth-gold-bar"></div>
+    </div>
+
+    <!-- Right form -->
+    <div class="auth-right">
+        <div class="auth-card">
+
+            <div class="card-accent" id="cardAccent"></div>
+
+            <div class="card-body">
+                <div class="card-title">Sign In</div>
+                <div class="card-subtitle">Choose your role, then enter your credentials.</div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <i class="fas fa-{% if message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% elif message.tags == 'success' %}check-circle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Role selector -->
+                <div class="role-grid" id="roleGrid">
+                    <button type="button" class="role-card" data-role="student" data-label="Student ID"
+                            data-hint="Enter your Student ID number">
+                        <i class="fas fa-user-graduate role-icon"></i>
+                        <span class="role-label">Student</span>
+                    </button>
+                    <button type="button" class="role-card" data-role="lecturer" data-label="Employee ID"
+                            data-hint="Enter your Employee ID number">
+                        <i class="fas fa-chalkboard-teacher role-icon"></i>
+                        <span class="role-label">Lecturer</span>
+                    </button>
+                    <button type="button" class="role-card" data-role="admin" data-label="Admin ID"
+                            data-hint="Enter your Administrator ID">
+                        <i class="fas fa-user-shield role-icon"></i>
+                        <span class="role-label">Admin</span>
+                    </button>
+                </div>
+
+                <div class="role-hint" id="roleHint">Select a role above to continue</div>
+                <div class="role-required-msg" id="roleRequired">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Please select your role first.
+                </div>
+
+                <form method="POST" id="loginForm" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="user_type" id="selectedRole" value="">
+
+                    <div class="field-group">
+                        <label class="field-label" for="user_id" id="idLabel">Identification Number</label>
+                        <div class="field-wrap">
+                            <i class="fas fa-id-card field-icon"></i>
+                            <input type="text" name="user_id" id="user_id" class="field-input"
+                                   placeholder="Select a role above" autocomplete="username"
+                                   disabled required>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="password">Password</label>
+                        <div class="field-wrap">
+                            <i class="fas fa-lock field-icon"></i>
+                            <input type="password" name="password" id="password"
+                                   class="field-input has-toggle"
+                                   placeholder="Enter your password"
+                                   autocomplete="current-password"
+                                   disabled required>
+                            <button type="button" class="pw-toggle" id="pwToggle" onclick="togglePw()">
+                                <i class="fas fa-eye" id="pwIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-signin" id="signinBtn" disabled>
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span id="signinLabel">Sign In</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="auth-card-footer">
+                Don't have an account? <a href="{% url 'register' %}">Register here</a>
+            </div>
+
+        </div>
+    </div>
+
+</div><!-- /auth-wrap -->
+
+<script>
+(function () {
+    const bgLayers   = document.querySelectorAll('.bg-layer');
+    const roleCards  = document.querySelectorAll('.role-card');
+    const hiddenRole = document.getElementById('selectedRole');
+    const userIdInput = document.getElementById('user_id');
+    const pwInput    = document.getElementById('password');
+    const signinBtn  = document.getElementById('signinBtn');
+    const signinLbl  = document.getElementById('signinLabel');
+    const idLabel    = document.getElementById('idLabel');
+    const roleHint   = document.getElementById('roleHint');
+    const roleReq    = document.getElementById('roleRequired');
+    const cardAccent = document.getElementById('cardAccent');
+
+    // Role config
+    const CONFIG = {
+        student:  { bg: 'bg-student',  label: 'Student ID',  hint: 'Use your Student ID (e.g. S12345)',     btnClass: '',          accent: 'student',  idIcon: 'fa-id-card',    signinText: 'Sign In as Student'  },
+        lecturer: { bg: 'bg-lecturer', label: 'Employee ID', hint: 'Use your Employee ID (e.g. E98765)',    btnClass: 'lecturer',  accent: 'lecturer', idIcon: 'fa-briefcase',  signinText: 'Sign In as Lecturer' },
+        admin:    { bg: 'bg-admin',    label: 'Admin ID',    hint: 'Use your Administrator ID (e.g. A001)', btnClass: 'admin',     accent: 'admin',    idIcon: 'fa-user-shield', signinText: 'Sign In as Admin'   },
+    };
+
+    function switchBackground(bgId) {
+        bgLayers.forEach(el => el.classList.remove('visible'));
+        const target = document.getElementById(bgId);
+        if (target) target.classList.add('visible');
+    }
+
+    function selectRole(role) {
+        const cfg = CONFIG[role];
+
+        // Background
+        switchBackground(cfg.bg);
+
+        // Role card highlight
+        roleCards.forEach(c => {
+            c.classList.remove('active', 'active-lecturer', 'active-admin');
+        });
+        const activeCard = document.querySelector(`.role-card[data-role="${role}"]`);
+        if (activeCard) {
+            const cls = role === 'lecturer' ? 'active-lecturer' : role === 'admin' ? 'active-admin' : 'active';
+            activeCard.classList.add(cls);
+        }
+
+        // Card accent
+        cardAccent.className = `card-accent ${cfg.accent}`;
+
+        // ID label + placeholder
+        idLabel.textContent = cfg.label;
+        userIdInput.placeholder = `Enter your ${cfg.label}`;
+
+        // Hint text
+        roleHint.textContent = cfg.hint;
+        roleReq.classList.remove('show');
+
+        // Field icon update
+        const icon = userIdInput.previousElementSibling;
+        if (icon) { icon.className = `fas ${cfg.idIcon} field-icon`; }
+
+        // Enable fields + button
+        userIdInput.disabled = false;
+        pwInput.disabled     = false;
+        signinBtn.disabled   = false;
+        signinBtn.className  = `btn-signin ${cfg.btnClass}`;
+        signinLbl.textContent = cfg.signinText;
+
+        // Hidden field
+        hiddenRole.value = role;
+
+        // Focus
+        userIdInput.value = '';
+        userIdInput.focus();
+    }
+
+    roleCards.forEach(card => {
+        card.addEventListener('click', () => selectRole(card.dataset.role));
+    });
+
+    // Prevent submit if no role selected
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+        if (!hiddenRole.value) {
+            e.preventDefault();
+            roleReq.classList.add('show');
+            // Shake role grid
+            const grid = document.getElementById('roleGrid');
+            grid.style.animation = 'none';
+            grid.offsetHeight;
+            grid.style.animation = 'shake .4s ease';
+        }
+    });
+
+    // Password show/hide
+    window.togglePw = function () {
+        const pw   = document.getElementById('password');
+        const icon = document.getElementById('pwIcon');
+        if (pw.type === 'password') {
+            pw.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            pw.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    };
+})();
+</script>
+<style>
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+}
+</style>
+</body>
+</html>

@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Manage Venues{% endblock %}
+
+{% block extra_css %}
+<style>
+.venues-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+.venue-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+.venue-card:hover { border-color: var(--navy); box-shadow: var(--shadow-md); transform: translateY(-3px); }
+.venue-card.inactive { opacity: .7; }
+
+.venue-img-wrap {
+    height: 150px;
+    background: var(--navy-light);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+}
+.venue-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.venue-img-placeholder { font-size: 40px; color: var(--navy); opacity: .2; }
+
+.venue-status-pill {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: .4px;
+}
+.pill-active   { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.pill-inactive { background: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
+
+.venue-type-badge {
+    position: absolute; top: 10px; left: 10px;
+    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: .4px; backdrop-filter: blur(4px);
+}
+.vtb-classroom { background: rgba(30,58,95,.85); color: #fff; }
+.vtb-lab       { background: rgba(30,107,58,.85); color: #fff; }
+.vtb-workshop  { background: rgba(122,66,0,.85);  color: #fff; }
+.vtb-studio    { background: rgba(123,29,58,.85); color: #fff; }
+
+.venue-body { padding: 16px 18px; }
+.venue-name { font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 10px; }
+
+.venue-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.venue-meta-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.venue-meta-row i { color: var(--navy); width: 14px; flex-shrink: 0; }
+
+.venue-actions {
+    display: flex; gap: 8px; align-items: center;
+    padding-top: 12px; border-top: 1px solid var(--border);
+}
+.toggle-wrap { display: flex; align-items: center; gap: 6px; }
+.toggle-wrap input[type=checkbox] { width: 34px; height: 18px; cursor: pointer; accent-color: var(--navy); }
+.toggle-label { font-size: 11px; font-weight: 600; color: var(--text-2); }
+
+/* Block dates section */
+.block-section {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.block-section-title {
+    font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase;
+    letter-spacing: .4px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.block-toggle-btn {
+    font-size: 11px; font-weight: 600; padding: 3px 8px; border: none;
+    background: var(--page-bg); color: var(--text-2); border-radius: 4px;
+    cursor: pointer; margin-left: auto;
+    transition: background .15s;
+}
+.block-toggle-btn:hover { background: var(--border); }
+.block-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; max-height: 130px; overflow-y: auto; }
+.block-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff5f5; border: 1px solid #fed7d7; border-radius: 6px;
+    padding: 4px 10px; font-size: 11px; color: #9b2c2c;
+}
+.block-pill .bp-date { font-weight: 700; flex-shrink: 0; }
+.block-pill .bp-reason { flex: 1; color: #c05621; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.block-delete-btn {
+    border: none; background: none; color: #9b2c2c; cursor: pointer; padding: 0 2px;
+    font-size: 12px; flex-shrink: 0; opacity: .6; transition: opacity .15s;
+}
+.block-delete-btn:hover { opacity: 1; }
+.block-add-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.block-date-input { flex: 1; min-width: 130px; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 5px; background: var(--card-bg); color: var(--text-1); }
+.block-reason-input { flex: 2; min-width: 120px; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 5px; background: var(--card-bg); color: var(--text-1); }
+.block-add-btn {
+    padding: 5px 12px; background: #9b2c2c; color: #fff; border: none;
+    border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background .15s;
+}
+.block-add-btn:hover { background: #7b2020; }
+
+.empty-state { text-align: center; padding: 64px 20px; color: var(--text-3); }
+.empty-state i { font-size: 40px; opacity: .2; margin-bottom: 16px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-building me-2" style="color:#b7791f;"></i>Manage Venues</h1>
+            <p>Add, configure, and block teaching venues.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i> Dashboard
+            </a>
+            <a href="{% url 'admin_add_venue' %}" class="btn-primary-academic">
+                <i class="fas fa-plus me-1"></i> Add Venue
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-3" style="border-radius:var(--radius); font-size:13px; padding:10px 16px;">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Summary row -->
+    <div class="mb-3" style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <span class="section-heading" style="font-size:16px;">All Venues</span>
+        <span style="font-size:13px; color:var(--text-3);">{{ venues.count }} total</span>
+        <!-- Type legend -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-left:auto;">
+            {% for code, label in venue_type_choices %}
+            <span class="venue-type-badge vtb-{{ code }}" style="position:static;">{{ label }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if venues %}
+    <div class="venues-grid mb-4">
+        {% for venue in venues %}
+        <div class="venue-card {% if not venue.is_active %}inactive{% endif %}">
+            <div class="venue-img-wrap">
+                {% if venue.picture %}
+                    <img src="{{ venue.picture.url }}" alt="{{ venue.venue_name }}">
+                {% else %}
+                    {% if venue.venue_type == 'lab' %}
+                        <i class="fas fa-desktop venue-img-placeholder"></i>
+                    {% elif venue.venue_type == 'workshop' %}
+                        <i class="fas fa-tools venue-img-placeholder"></i>
+                    {% elif venue.venue_type == 'studio' %}
+                        <i class="fas fa-palette venue-img-placeholder"></i>
+                    {% else %}
+                        <i class="fas fa-chalkboard venue-img-placeholder"></i>
+                    {% endif %}
+                {% endif %}
+                <span class="venue-type-badge vtb-{{ venue.venue_type }}">{{ venue.get_venue_type_display }}</span>
+                <span class="venue-status-pill {% if venue.is_active %}pill-active{% else %}pill-inactive{% endif %}">
+                    {% if venue.is_active %}<i class="fas fa-circle" style="font-size:7px;"></i> Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+            <div class="venue-body">
+                <div class="venue-name">{{ venue.venue_name }}</div>
+                <div class="venue-meta">
+                    <div class="venue-meta-row"><i class="fas fa-map-marker-alt"></i> {{ venue.location }}</div>
+                    <div class="venue-meta-row"><i class="fas fa-users"></i> Capacity: {{ venue.capacity }}</div>
+                    {% if venue.facilities %}
+                    <div class="venue-meta-row"><i class="fas fa-tools"></i> {{ venue.facilities }}</div>
+                    {% endif %}
+                </div>
+                <div class="venue-actions">
+                    <a href="{% url 'admin_update_venue' venue.id %}" class="btn-primary-academic" style="font-size:12px; padding:6px 12px; flex:1; justify-content:center;">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                    <form action="{% url 'admin_toggle_venue_status' venue.id %}" method="POST" style="margin:0;">
+                        {% csrf_token %}
+                        <div class="toggle-wrap">
+                            <input type="checkbox" id="tog-{{ venue.id }}" {% if venue.is_active %}checked{% endif %} onchange="this.form.submit()">
+                            <label for="tog-{{ venue.id }}" class="toggle-label">
+                                {% if venue.is_active %}Active{% else %}Inactive{% endif %}
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ── Block Dates Section ── -->
+                <div class="block-section">
+                    <div class="block-section-title">
+                        <i class="fas fa-ban" style="color:#9b2c2c;"></i>
+                        Blocked Dates
+                        {% with venue.blocks.all as blks %}
+                        {% if blks %}
+                        <span style="background:#fed7d7; color:#9b2c2c; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:800;">{{ blks.count }}</span>
+                        {% endif %}
+                        {% endwith %}
+                        <button type="button" class="block-toggle-btn" onclick="toggleBlock({{ venue.id }})">
+                            <i class="fas fa-chevron-down" id="bicon-{{ venue.id }}"></i>
+                        </button>
+                    </div>
+
+                    <div id="block-panel-{{ venue.id }}" style="display:none;">
+                        <!-- Existing blocks list -->
+                        {% with venue.blocks.all as blks %}
+                        {% if blks %}
+                        <div class="block-list" id="block-list-{{ venue.id }}">
+                            {% for blk in blks %}
+                            <div class="block-pill">
+                                <span class="bp-date"><i class="fas fa-calendar-times me-1"></i>{{ blk.blocked_date|date:"d M Y" }}</span>
+                                {% if blk.reason %}
+                                <span class="bp-reason">{{ blk.reason }}</span>
+                                {% else %}
+                                <span class="bp-reason">No reason given</span>
+                                {% endif %}
+                                <form method="POST" action="{% url 'admin_delete_venue_block' blk.id %}" style="margin:0;" onsubmit="return confirm('Remove this block?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="block-delete-btn" title="Remove block">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p style="font-size:12px; color:var(--text-3); margin-bottom:8px; font-style:italic;">No dates blocked.</p>
+                        {% endif %}
+                        {% endwith %}
+
+                        <!-- Add block form -->
+                        <form method="POST" action="{% url 'admin_add_venue_block' venue.id %}" class="block-add-form">
+                            {% csrf_token %}
+                            <input type="date" name="blocked_date" class="block-date-input"
+                                   min="{{ today|date:'Y-m-d' }}" required placeholder="Date to block">
+                            <input type="text" name="reason" class="block-reason-input"
+                                   placeholder="Reason (optional)" maxlength="200">
+                            <button type="submit" class="block-add-btn">
+                                <i class="fas fa-ban me-1"></i>Block
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <!-- ── End Block Section ── -->
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card-academic">
+        <div class="card-academic-body">
+            <div class="empty-state">
+                <i class="fas fa-building"></i>
+                <div style="font-size:15px; font-weight:600; margin-bottom:6px;">No venues yet</div>
+                <p style="font-size:13px;">Add your first venue to get started.</p>
+                <a href="{% url 'admin_add_venue' %}" class="btn-primary-academic mt-3">
+                    <i class="fas fa-plus me-1"></i>Add First Venue
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function toggleBlock(venueId) {
+    const panel = document.getElementById('block-panel-' + venueId);
+    const icon  = document.getElementById('bicon-' + venueId);
+    if (!panel) return;
+    if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        panel.style.display = 'none';
+        icon.style.transform = '';
+    }
+}
+
+// Auto-open panel if venue has blocks and date is today or future
+document.addEventListener('DOMContentLoaded', function () {
+    {% for venue in venues %}
+    {% with venue.blocks.all as blks %}
+    {% if blks %}
+    // venue {{ venue.id }} has blocks — keep closed by default, user can open
+    {% endif %}
+    {% endwith %}
+    {% endfor %}
+});
+</script>
+{% endblock %}

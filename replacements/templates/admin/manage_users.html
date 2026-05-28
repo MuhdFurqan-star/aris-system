@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Manage Users{% endblock %}
+
+{% block extra_css %}
+<style>
+.tab-bar { display:flex; gap:4px; margin-bottom:0; border-bottom:2px solid var(--border); }
+.tab-btn {
+    padding:9px 22px; font-size:13px; font-weight:600; border:none; background:none;
+    color:var(--text-2); cursor:pointer; border-bottom:2px solid transparent;
+    margin-bottom:-2px; transition:color .18s, border-color .18s;
+}
+.tab-btn.active { color:var(--navy); border-bottom-color:var(--navy); }
+.tab-btn:hover:not(.active) { color:var(--navy); }
+
+.user-row:hover td { background:#f7f9fc; }
+.id-badge {
+    display:inline-block; font-size:11px; font-weight:700;
+    background:var(--navy-light); color:var(--navy);
+    padding:2px 8px; border-radius:4px; letter-spacing:.4px;
+}
+.action-btns { display:flex; gap:6px; flex-wrap:nowrap; }
+
+.reset-pw-form { display:inline; }
+.inline-reset { display:inline-flex; align-items:center; gap:6px; }
+
+/* Course / Class filter pills */
+.course-pill {
+    display:inline-block; padding:4px 12px; border-radius:20px;
+    font-size:12px; font-weight:600; text-decoration:none;
+    border:1.5px solid var(--border); color:var(--text-2);
+    background:var(--card-bg); transition:all .18s; white-space:nowrap;
+}
+.course-pill:hover { border-color:var(--navy); color:var(--navy); background:var(--navy-light); }
+.course-pill.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+
+/* Class group pills — slightly smaller, teal accent */
+.class-pill {
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:11px; font-weight:700; text-decoration:none;
+    border:1.5px solid var(--border); color:var(--text-2);
+    background:var(--card-bg); transition:all .18s; white-space:nowrap;
+    letter-spacing:.3px;
+}
+.class-pill:hover { border-color:#0e7490; color:#0e7490; background:#ecfeff; }
+.class-pill.active { background:#0e7490; color:#fff; border-color:#0e7490; }
+
+/* Sem label in class pills row */
+.sem-divider {
+    font-size:10px; font-weight:700; color:var(--text-3);
+    background:var(--border); padding:2px 7px; border-radius:4px;
+    margin-left:4px; margin-right:2px; letter-spacing:.4px;
+    text-transform:uppercase;
+}
+
+.filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 20px; border-bottom:1px solid var(--border); }
+.filter-row:last-child { border-bottom:none; }
+.filter-label { font-size:12px; font-weight:600; color:var(--text-2); white-space:nowrap; min-width:70px; }
+
+/* Course badge in table */
+.course-badge {
+    display:inline-block; font-size:10px; font-weight:700; letter-spacing:.4px;
+    padding:2px 7px; border-radius:4px; text-transform:uppercase;
+}
+.cb-CS  { background:#e8f0fe; color:#1a3a6b; }
+.cb-LH  { background:#e6f4ea; color:#1e6b3a; }
+.cb-ACC { background:#fff3e0; color:#7a4200; }
+.cb-BS  { background:#fce4ec; color:#7b1d3a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-users me-2" style="color:#b7791f;"></i>User Management</h1>
+            <p>Add, edit, or remove student and lecturer accounts.</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{% url 'admin_add_user' %}?tab={{ tab }}" class="btn-primary-academic">
+                <i class="fas fa-user-plus me-1"></i>Add User
+            </a>
+            <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter + Search card -->
+    <div class="card-academic mb-3" style="padding:0;">
+
+        <!-- Row 1: Course filter -->
+        <div class="filter-row">
+            <span class="filter-label"><i class="fas fa-layer-group me-1"></i>Course:</span>
+            <a href="?tab={{ tab }}{% if search %}&q={{ search }}{% endif %}"
+               class="course-pill {% if not course %}active{% endif %}">All</a>
+            {% for code, label in course_choices %}
+            <a href="?tab={{ tab }}&course={{ code }}{% if class_grp %}&class={{ class_grp }}{% endif %}{% if search %}&q={{ search }}{% endif %}"
+               class="course-pill {% if course == code %}active{% endif %}">{{ label }}</a>
+            {% endfor %}
+        </div>
+
+        <!-- Row 2: Class group filter (grouped by semester) -->
+        <div class="filter-row">
+            <span class="filter-label"><i class="fas fa-users me-1"></i>Class:</span>
+            <a href="?tab={{ tab }}{% if course %}&course={{ course }}{% endif %}{% if search %}&q={{ search }}{% endif %}"
+               class="class-pill {% if not class_grp %}active{% endif %}">All Classes</a>
+            {% if class_options %}
+                {% regroup class_options by name as sem_groups %}
+                {% for sem_group in sem_groups %}
+                <span class="sem-divider">Sem {{ sem_group.grouper }}</span>
+                {% for opt in sem_group.list %}
+                <a href="?tab={{ tab }}{% if course %}&course={{ course }}{% endif %}&class={{ opt.class_name }}{% if search %}&q={{ search }}{% endif %}"
+                   class="class-pill {% if class_grp == opt.class_name %}active{% endif %}">
+                    {{ opt.class_name }}
+                </a>
+                {% endfor %}
+                {% endfor %}
+            {% else %}
+            <span style="font-size:12px; color:var(--text-3); font-style:italic;">No classes available for the selected course.</span>
+            {% endif %}
+        </div>
+
+        <!-- Row 3: Search bar -->
+        <div class="filter-row" style="border-bottom:none;">
+            <span class="filter-label"><i class="fas fa-search me-1"></i>Search:</span>
+            <form method="GET" style="display:flex; gap:8px; flex:1; flex-wrap:wrap;">
+                <input type="hidden" name="tab"    value="{{ tab }}">
+                <input type="hidden" name="course" value="{{ course }}">
+                <input type="hidden" name="class"  value="{{ class_grp }}">
+                <input type="text" name="q" value="{{ search }}" class="form-field"
+                       placeholder="Search by name, email or ID…"
+                       style="flex:1; min-width:220px; padding:8px 12px;">
+                <button type="submit" class="btn-primary-academic" style="padding:8px 18px;">
+                    <i class="fas fa-search me-1"></i>Search
+                </button>
+                {% if search or course or class_grp %}
+                <a href="{% url 'admin_manage_users' %}?tab={{ tab }}" class="btn-outline-academic" style="padding:8px 14px;">
+                    <i class="fas fa-times me-1"></i>Clear All
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card-academic">
+        <div style="padding:0 20px; border-bottom:2px solid var(--border); background:var(--navy-light); border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
+            <div class="tab-bar">
+                <button class="tab-btn {% if tab == 'students' %}active{% endif %}"
+                        onclick="switchTab('students')">
+                    <i class="fas fa-user-graduate me-1"></i>Students
+                    <span style="font-size:11px; background:var(--border); border-radius:10px; padding:1px 7px; margin-left:4px;">{{ students|length }}</span>
+                </button>
+                <button class="tab-btn {% if tab == 'lecturers' %}active{% endif %}"
+                        onclick="switchTab('lecturers')">
+                    <i class="fas fa-chalkboard-teacher me-1"></i>Lecturers
+                    <span style="font-size:11px; background:var(--border); border-radius:10px; padding:1px 7px; margin-left:4px;">{{ lecturers|length }}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Students Tab -->
+        <div id="tab-students" {% if tab != 'students' %}style="display:none;"{% endif %}>
+            {% if students %}
+            <div style="overflow-x:auto;">
+            <table class="table-academic">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Name</th>
+                        <th>Student ID</th>
+                        <th>Course</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th style="width:180px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in students %}
+                <tr class="user-row">
+                    <td style="color:var(--text-3);">{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ s.get_full_name|default:s.username }}</strong>
+                    </td>
+                    <td><span class="id-badge">{{ s.userprofile.student_id|default:"—" }}</span></td>
+                    <td>
+                        {% if s.userprofile.course %}
+                        <span class="course-badge cb-{{ s.userprofile.course }}">{{ s.userprofile.course }}</span>
+                        {% else %}<span style="color:var(--text-3);">—</span>{% endif %}
+                    </td>
+                    <td style="color:var(--text-2);">{{ s.username }}</td>
+                    <td style="color:var(--text-2); font-size:12px;">{{ s.email|default:"—" }}</td>
+                    <td>
+                        <div class="action-btns">
+                            <a href="{% url 'admin_edit_user' s.id %}" class="btn-outline-academic" style="padding:5px 10px; font-size:12px;">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <!-- Reset password inline -->
+                            <button onclick="openReset({{ s.id }}, '{{ s.get_full_name|default:s.username }}')"
+                                    class="btn-outline-academic" style="padding:5px 10px; font-size:12px; color:#975a16; border-color:#975a16;">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="{% url 'admin_delete_user' s.id %}"
+                               class="btn-outline-academic" style="padding:5px 10px; font-size:12px; color:#9b2c2c; border-color:#9b2c2c;">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div style="padding:48px; text-align:center; color:var(--text-3);">
+                <i class="fas fa-user-slash" style="font-size:32px; margin-bottom:12px; display:block;"></i>
+                No students found{% if search %} matching "{{ search }}"{% endif %}.
+                <br><a href="{% url 'admin_add_user' %}?tab=students" class="btn-primary-academic" style="margin-top:16px; display:inline-flex;">
+                    <i class="fas fa-user-plus me-1"></i>Add Student
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Lecturers Tab -->
+        <div id="tab-lecturers" {% if tab != 'lecturers' %}style="display:none;"{% endif %}>
+            {% if lecturers %}
+            <div style="overflow-x:auto;">
+            <table class="table-academic">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Name</th>
+                        <th>Employee ID</th>
+                        <th>Course / Dept</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Subjects</th>
+                        <th style="width:180px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for l in lecturers %}
+                <tr class="user-row">
+                    <td style="color:var(--text-3);">{{ forloop.counter }}</td>
+                    <td><strong>{{ l.get_full_name|default:l.username }}</strong></td>
+                    <td><span class="id-badge">{{ l.userprofile.employee_id|default:"—" }}</span></td>
+                    <td>
+                        {% if l.userprofile.course %}
+                        <span class="course-badge cb-{{ l.userprofile.course }}">{{ l.userprofile.course }}</span>
+                        {% else %}<span style="color:var(--text-3);">—</span>{% endif %}
+                    </td>
+                    <td style="color:var(--text-2);">{{ l.username }}</td>
+                    <td style="color:var(--text-2); font-size:12px;">{{ l.email|default:"—" }}</td>
+                    <td>
+                        <span style="font-size:12px; color:var(--text-2);">
+                            {{ l.subject_set.count }} subject{{ l.subject_set.count|pluralize }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <a href="{% url 'admin_lecturer_detail' l.id %}" class="btn-outline-academic" style="padding:5px 10px; font-size:12px;" title="View profile">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'admin_edit_user' l.id %}" class="btn-outline-academic" style="padding:5px 10px; font-size:12px;">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="openReset({{ l.id }}, '{{ l.get_full_name|default:l.username }}')"
+                                    class="btn-outline-academic" style="padding:5px 10px; font-size:12px; color:#975a16; border-color:#975a16;">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="{% url 'admin_delete_user' l.id %}"
+                               class="btn-outline-academic" style="padding:5px 10px; font-size:12px; color:#9b2c2c; border-color:#9b2c2c;">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div style="padding:48px; text-align:center; color:var(--text-3);">
+                <i class="fas fa-chalkboard-teacher" style="font-size:32px; margin-bottom:12px; display:block;"></i>
+                No lecturers found{% if search %} matching "{{ search }}"{% endif %}.
+                <br><a href="{% url 'admin_add_user' %}?tab=lecturers" class="btn-primary-academic" style="margin-top:16px; display:inline-flex;">
+                    <i class="fas fa-user-plus me-1"></i>Add Lecturer
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:3000; align-items:center; justify-content:center;">
+    <div style="background:var(--card-bg); border-radius:var(--radius-lg); padding:28px 32px; width:100%; max-width:420px; box-shadow:var(--shadow-lg); margin:16px;">
+        <h3 style="font-size:16px; margin:0 0 4px; color:var(--navy);">
+            <i class="fas fa-key me-2" style="color:#b7791f;"></i>Reset Password
+        </h3>
+        <p id="resetName" style="font-size:13px; color:var(--text-2); margin:0 0 18px;"></p>
+        <form method="POST" id="resetForm">
+            {% csrf_token %}
+            <label class="form-label">New Password <span style="color:#9b2c2c;">*</span></label>
+            <input type="password" name="new_password" id="resetPwInput" class="form-field" required minlength="8"
+                   placeholder="Minimum 8 characters" style="margin-bottom:4px;">
+            <div style="font-size:11px; color:var(--text-3); margin-bottom:16px;">The user will need to use this password at next login.</div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="btn-primary-academic" style="flex:1; justify-content:center;">
+                    <i class="fas fa-check me-1"></i>Reset Password
+                </button>
+                <button type="button" class="btn-outline-academic" onclick="closeReset()" style="flex:1; justify-content:center;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tab) {
+    ['students','lecturers'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+        document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', (i === 0 && tab === 'students') || (i === 1 && tab === 'lecturers'));
+        });
+    });
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
+}
+
+const resetModal = document.getElementById('resetModal');
+function openReset(userId, name) {
+    document.getElementById('resetForm').action = `/admin-portal/users/${userId}/reset-password/`;
+    document.getElementById('resetName').textContent = `Setting new password for: ${name}`;
+    document.getElementById('resetPwInput').value = '';
+    resetModal.style.display = 'flex';
+}
+function closeReset() {
+    resetModal.style.display = 'none';
+}
+resetModal.addEventListener('click', e => { if (e.target === resetModal) closeReset(); });
+</script>
+{% endblock %}

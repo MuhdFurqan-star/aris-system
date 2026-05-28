@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Mark Attendance{% endblock %}
+
+{% block extra_css %}
+<style>
+.scan-card {
+    max-width: 460px; margin: 40px auto;
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+.scan-card-header {
+    padding: 28px 28px 24px; text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+.scan-card-header.success { border-top: 4px solid #276749; }
+.scan-card-header.error   { border-top: 4px solid #9b2c2c; }
+.scan-card-header.warning { border-top: 4px solid #b7791f; }
+.scan-card-header.info    { border-top: 4px solid var(--navy); }
+
+.scan-icon-wrap {
+    width: 68px; height: 68px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px; font-size: 30px;
+}
+.scan-icon-wrap.success { background: #f0fff4; color: #276749; }
+.scan-icon-wrap.error   { background: #fff5f5; color: #9b2c2c; }
+.scan-icon-wrap.warning { background: #fef3c7; color: #b7791f; }
+.scan-icon-wrap.info    { background: #ebf0f8; color: var(--navy); }
+
+.scan-card-header h2 { font-weight: 700; font-size: 1.4rem; color: var(--text-1); margin-bottom: 6px; }
+.scan-card-header p  { font-size: 13px; color: var(--text-3); margin: 0; }
+
+.scan-card-body { padding: 24px 28px; }
+
+.class-detail {
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px;
+}
+.class-detail-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; font-size: 13px;
+}
+.class-detail-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.class-detail-row .lbl { color: var(--text-3); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
+.class-detail-row .val { color: var(--text-1); font-weight: 600; text-align: right; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+<div class="scan-card">
+
+    {% if status == 'success' %}
+    <div class="scan-card-header success">
+        <div class="scan-icon-wrap success"><i class="fas fa-check-circle"></i></div>
+        <h2>Attendance Marked!</h2>
+        <p>You have been recorded as present.</p>
+    </div>
+    <div class="scan-card-body">
+        <div class="class-detail">
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ session.replacement_request.subject.subject_code }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ session.replacement_request.replacement_time_slot }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ session.replacement_request.venue.venue_name }}</span></div>
+        </div>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% elif status == 'already' %}
+    <div class="scan-card-header warning">
+        <div class="scan-icon-wrap warning"><i class="fas fa-exclamation-triangle"></i></div>
+        <h2>Already Marked</h2>
+        <p>Your attendance was already recorded for this class.</p>
+    </div>
+    <div class="scan-card-body">
+        <div class="class-detail">
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
+        </div>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% elif status == 'closed' %}
+    <div class="scan-card-header error">
+        <div class="scan-icon-wrap error"><i class="fas fa-lock"></i></div>
+        <h2>Session Closed</h2>
+        <p>The lecturer has closed this attendance session.</p>
+    </div>
+    <div class="scan-card-body">
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% elif status == 'expired' %}
+    <div class="scan-card-header error">
+        <div class="scan-icon-wrap error"><i class="fas fa-hourglass-end"></i></div>
+        <h2>Session Expired</h2>
+        <p>This QR code has expired. Please ask your lecturer to reopen the session.</p>
+    </div>
+    <div class="scan-card-body">
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% elif status == 'confirm' %}
+    <div class="scan-card-header info">
+        <div class="scan-icon-wrap info"><i class="fas fa-mobile-alt"></i></div>
+        <h2>Confirm Attendance</h2>
+        <p>Tap the button below to mark yourself as present.</p>
+    </div>
+    <div class="scan-card-body">
+        <div class="class-detail">
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ session.replacement_request.subject.subject_code }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Lecturer</span><span class="val">{{ session.replacement_request.lecturer.get_full_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ session.replacement_request.replacement_time_slot }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ session.replacement_request.venue.venue_name }}</span></div>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary-academic" style="width:100%; justify-content:center; padding:13px; font-size:15px; margin-bottom:10px;">
+                <i class="fas fa-check-circle me-2"></i> Mark Me Present
+            </button>
+        </form>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            Cancel
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

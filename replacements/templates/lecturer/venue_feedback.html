@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% block title %}Venue Feedback — Lecturer{% endblock %}
+
+{% block extra_css %}
+<style>
+.severity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.severity-option input[type=radio] { display: none; }
+.severity-label {
+    display: block; padding: 16px;
+    border: 2px solid var(--border); border-radius: var(--radius);
+    text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s;
+}
+.severity-label:hover { border-color: var(--navy); }
+.severity-option input:checked + .severity-label.lbl-critical { border-color: #9b2c2c; background: #fff5f5; }
+.severity-option input:checked + .severity-label.lbl-moderate { border-color: #b7791f; background: #fef3c7; }
+.severity-icon { font-size: 28px; margin-bottom: 6px; display: block; }
+.severity-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.severity-desc  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+.issue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.issue-check {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; background: var(--page-bg);
+    border-radius: var(--radius); border: 1px solid var(--border);
+    cursor: pointer; font-size: 13px; color: var(--text-1);
+    transition: border-color .15s;
+}
+.issue-check:hover { border-color: var(--navy); }
+.issue-check input[type=checkbox] { accent-color: var(--navy); width: 15px; height: 15px; flex-shrink: 0; }
+
+.feedback-row {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px;
+}
+.feedback-row.critical { border-left: 4px solid #9b2c2c; }
+.feedback-row.moderate { border-left: 4px solid #b7791f; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); }
+.empty-state i { font-size: 36px; opacity: .2; margin-bottom: 12px; display: block; }
+
+@media (max-width: 900px) { .content-cols { grid-template-columns: 1fr !important; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-comment-alt me-2" style="color:#b7791f;"></i>Venue Feedback</h1>
+            <p>Report facility issues or damage found in teaching venues.</p>
+        </div>
+        <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="content-cols" style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+
+        <!-- Submit form -->
+        <div class="card-academic">
+            <div class="card-academic-header"><i class="fas fa-exclamation-triangle"></i> Submit Issue Report</div>
+            <div class="card-academic-body">
+
+                <div style="background:#fef3c7; border:1px solid #fbd38d; border-radius:var(--radius); padding:10px 14px; font-size:13px; color:#975a16; margin-bottom:18px;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Use this form to report facility problems or damage in venues.
+                </div>
+
+                <form method="post" action="{% url 'lecturer_venue_feedback' %}">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Venue <span style="color:#9b2c2c;">*</span></label>
+                        <select name="venue" class="form-field" required style="width:100%;">
+                            <option value="">— Select Venue —</option>
+                            {% for venue in venues %}
+                            <option value="{{ venue.id }}">{{ venue.venue_name }} — {{ venue.location }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Related to Class (Optional)</label>
+                        <select name="replacement_request" class="form-field" style="width:100%;">
+                            <option value="">None — General Report</option>
+                            {% for req in my_past_requests %}
+                            <option value="{{ req.id }}">
+                                {{ req.subject.subject_code }} · {{ req.replacement_date|date:"d M Y" }} at {{ req.venue.venue_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Issue Severity <span style="color:#9b2c2c;">*</span></label>
+                        <div class="severity-grid">
+                            <div class="severity-option">
+                                <input type="radio" name="severity" value="critical" id="sev-critical" required>
+                                <label for="sev-critical" class="severity-label lbl-critical">
+                                    <i class="fas fa-exclamation-triangle severity-icon" style="color:#9b2c2c;"></i>
+                                    <div class="severity-title">Critical</div>
+                                    <div class="severity-desc">Urgent — cannot conduct class</div>
+                                </label>
+                            </div>
+                            <div class="severity-option">
+                                <input type="radio" name="severity" value="moderate" id="sev-moderate">
+                                <label for="sev-moderate" class="severity-label lbl-moderate">
+                                    <i class="fas fa-exclamation-circle severity-icon" style="color:#b7791f;"></i>
+                                    <div class="severity-title">Moderate</div>
+                                    <div class="severity-desc">Can teach, but needs repair</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Issue Type (Check all that apply)</label>
+                        <div class="issue-grid">
+                            <label class="issue-check"><input type="checkbox" name="issue_aircon" value="1"><i class="fas fa-wind" style="color:var(--navy);"></i> Air Conditioning</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_projector" value="1"><i class="fas fa-projector" style="color:var(--navy);"></i> Projector</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_audio" value="1"><i class="fas fa-volume-up" style="color:var(--navy);"></i> Audio System</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_lighting" value="1"><i class="fas fa-lightbulb" style="color:var(--navy);"></i> Lighting</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_furniture" value="1"><i class="fas fa-chair" style="color:var(--navy);"></i> Furniture/Tables</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_cleanliness" value="1"><i class="fas fa-broom" style="color:var(--navy);"></i> Cleanliness</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_internet" value="1"><i class="fas fa-wifi" style="color:var(--navy);"></i> Internet/WiFi</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_electrical" value="1"><i class="fas fa-bolt" style="color:var(--navy);"></i> Electrical/Power</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_door" value="1"><i class="fas fa-door-open" style="color:var(--navy);"></i> Door/Windows</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_whiteboard" value="1"><i class="fas fa-chalkboard" style="color:var(--navy);"></i> Whiteboard</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_safety" value="1"><i class="fas fa-shield-alt" style="color:var(--navy);"></i> Safety Hazard</label>
+                            <label class="issue-check"><input type="checkbox" name="issue_other" value="1"><i class="fas fa-ellipsis-h" style="color:var(--navy);"></i> Other</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Detailed Description <span style="color:#9b2c2c;">*</span></label>
+                        <textarea name="feedback_text" class="form-field" required
+                            style="width:100%; min-height:110px; resize:vertical;"
+                            placeholder="Describe the problem in detail — what happened, when, what damage occurred…"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary-academic" style="width:100%; justify-content:center; padding:12px;">
+                        <i class="fas fa-paper-plane me-1"></i>Submit Report
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- My previous reports -->
+        <div class="card-academic">
+            <div class="card-academic-header"><i class="fas fa-history"></i> My Previous Reports</div>
+            <div class="card-academic-body">
+                {% if my_feedback %}
+                    {% for feedback in my_feedback %}
+                    <div class="feedback-row {{ feedback.issue_status }}">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
+                            <div style="font-size:14px; font-weight:700; color:var(--text-1);">
+                                <i class="fas fa-building me-1" style="color:var(--navy); font-size:12px;"></i>
+                                {{ feedback.venue.venue_name }}
+                            </div>
+                            {% if feedback.issue_status == 'critical' %}
+                                <span class="badge-rejected" style="font-size:10px;">Critical</span>
+                            {% elif feedback.issue_status == 'moderate' %}
+                                <span class="badge-pending" style="font-size:10px;">Moderate</span>
+                            {% else %}
+                                <span class="badge-approved" style="font-size:10px;">Solved</span>
+                            {% endif %}
+                        </div>
+                        <div style="font-size:13px; color:var(--text-2); line-height:1.5; margin-bottom:6px; white-space:pre-wrap;">
+                            {{ feedback.feedback_text|truncatewords:30 }}
+                        </div>
+                        <div style="font-size:11px; color:var(--text-3);">
+                            <i class="fas fa-clock me-1"></i>{{ feedback.created_at|date:"d M Y, H:i" }}
+                            {% if feedback.replacement_request %}
+                            · Related to {{ feedback.replacement_request.subject.subject_code }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p style="font-size:13px;">No reports submitted yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

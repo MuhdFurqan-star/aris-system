@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Edit Venue — {{ venue.venue_name }}{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:760px; margin:0 auto;">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-edit me-2" style="color:#b7791f;"></i>Edit Venue</h1>
+            <p>Update the details for <strong>{{ venue.venue_name }}</strong>.</p>
+        </div>
+        <a href="{% url 'admin_manage_venues' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Back to Venues
+        </a>
+    </div>
+
+    <!-- Current venue snapshot -->
+    <div class="card-academic mb-4">
+        <div class="card-academic-header"><i class="fas fa-building"></i> Current Information</div>
+        <div class="card-academic-body">
+            <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+                {% if venue.picture %}
+                <img src="{{ venue.picture.url }}" alt="{{ venue.venue_name }}"
+                     style="width:160px; height:110px; object-fit:cover; border-radius:var(--radius); border:1px solid var(--border);">
+                {% else %}
+                <div style="width:160px; height:110px; background:var(--navy-light); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; border:1px solid var(--border);">
+                    <i class="fas fa-building" style="font-size:36px; color:var(--navy); opacity:.3;"></i>
+                </div>
+                {% endif %}
+                <div style="flex:1;">
+                    <div style="font-size:16px; font-weight:700; color:var(--text-1); margin-bottom:8px;">{{ venue.venue_name }}</div>
+                    <div style="font-size:13px; color:var(--text-2); margin-bottom:4px;">
+                        <i class="fas fa-tag me-1" style="color:var(--navy);"></i>{{ venue.get_venue_type_display }}
+                    </div>
+                    <div style="font-size:13px; color:var(--text-2); margin-bottom:4px;"><i class="fas fa-map-marker-alt me-1" style="color:var(--navy);"></i>{{ venue.location }}</div>
+                    <div style="font-size:13px; color:var(--text-2); margin-bottom:4px;"><i class="fas fa-users me-1" style="color:var(--navy);"></i>Capacity: {{ venue.capacity }}</div>
+                    {% if venue.facilities %}
+                    <div style="font-size:13px; color:var(--text-2);"><i class="fas fa-tools me-1" style="color:var(--navy);"></i>{{ venue.facilities }}</div>
+                    {% endif %}
+                    <div style="margin-top:8px;">
+                        {% if venue.is_active %}
+                            <span class="badge-approved">Active</span>
+                        {% else %}
+                            <span style="background:#e2e8f0; color:#4a5568; font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px;">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit form -->
+    <div class="card-academic">
+        <div class="card-academic-header"><i class="fas fa-pen"></i> Update Venue Information</div>
+        <div class="card-academic-body">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-8">
+                        <label class="form-label">Venue Name <span style="color:#9b2c2c;">*</span></label>
+                        <input type="text" name="venue_name" class="form-field" required
+                               value="{{ venue.venue_name }}" placeholder="e.g. Lecture Hall A">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label">Venue Type <span style="color:#9b2c2c;">*</span></label>
+                        <select name="venue_type" class="form-field" required>
+                            {% for code, label in venue_type_choices %}
+                            <option value="{{ code }}" {% if venue.venue_type == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-8">
+                        <label class="form-label">Location <span style="color:#9b2c2c;">*</span></label>
+                        <input type="text" name="location" class="form-field" required
+                               value="{{ venue.location }}" placeholder="e.g. Building 1, Floor 2">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label">Capacity <span style="color:#9b2c2c;">*</span></label>
+                        <input type="number" name="capacity" class="form-field" required min="1"
+                               value="{{ venue.capacity }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Available Facilities</label>
+                    <textarea name="facilities" class="form-field" style="width:100%; min-height:90px; resize:vertical;"
+                        placeholder="e.g. Projector, Whiteboard, Air Conditioning">{{ venue.facilities|default:'' }}</textarea>
+                    <div style="font-size:12px; color:var(--text-3); margin-top:4px;">Separate items with commas.</div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Replace Venue Image</label>
+                    <input type="file" name="picture" class="form-field" accept="image/*"
+                           style="padding:10px; background:var(--page-bg); border-style:dashed;">
+                    <div style="font-size:12px; color:var(--text-3); margin-top:4px;">Leave blank to keep the current image. JPG/PNG, max 5 MB.</div>
+                </div>
+
+                <div style="display:flex; gap:12px; padding-top:14px; border-top:1px solid var(--border);">
+                    <button type="submit" class="btn-primary-academic" style="flex:1; justify-content:center; padding:12px;">
+                        <i class="fas fa-save me-1"></i>Update Venue
+                    </button>
+                    <a href="{% url 'admin_manage_venues' %}" class="btn-outline-academic" style="flex:1; justify-content:center; padding:12px;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+
+            <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+                <form method="POST" action="{% url 'admin_delete_venue' venue.id %}"
+                      onsubmit="return confirm('Permanently delete {{ venue.venue_name }}? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-primary-academic" style="background:#9b2c2c; width:100%; justify-content:center; padding:10px;">
+                        <i class="fas fa-trash me-1"></i>Delete This Venue
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

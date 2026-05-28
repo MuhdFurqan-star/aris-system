@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Venue Feedback Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.feedback-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.feedback-row.critical { border-left: 4px solid #9b2c2c; }
+.feedback-row.moderate { border-left: 4px solid #b7791f; }
+.feedback-row.solved   { border-left: 4px solid #276749; }
+.feedback-row:hover { box-shadow: var(--shadow-sm); }
+
+.feedback-text {
+    background: var(--page-bg);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 13px; color: var(--text-2);
+    line-height: 1.6; margin: 10px 0;
+    white-space: pre-line;
+}
+.feedback-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-3); }
+.feedback-meta i { color: var(--navy); }
+
+.stat-card .icon-wrap.red    { background: #fff5f5; color: #9b2c2c; }
+.stat-card .icon-wrap.amber  { background: #fef3c7; color: #b7791f; }
+.stat-card .icon-wrap.blue   { background: #ebf0f8; color: #1e3a5f; }
+
+.filter-bar {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+}
+.filter-bar .form-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.filter-bar select, .filter-bar input {
+    padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13px;
+    background: var(--card-bg); color: var(--text-1);
+    min-width: 180px;
+}
+.filter-bar select:focus, .filter-bar input:focus {
+    outline: none; border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(30,58,95,.08);
+}
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.empty-state i { font-size: 40px; opacity: .2; margin-bottom: 14px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-comments me-2" style="color:#b7791f;"></i>Venue Feedback</h1>
+            <p>Review and manage all venue issue reports submitted by lecturers.</p>
+        </div>
+        <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="icon-wrap blue"><i class="fas fa-comment-alt"></i></div>
+                <div class="number">{{ total_reports }}</div>
+                <div class="label">Total Reports</div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="icon-wrap red"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="number">{{ critical_count }}</div>
+                <div class="label">Critical Issues</div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card">
+                <div class="icon-wrap amber"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="number">{{ moderate_count }}</div>
+                <div class="label">Moderate Issues</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card-academic mb-4">
+        <div class="card-academic-header"><i class="fas fa-filter"></i> Filter Reports</div>
+        <div class="card-academic-body">
+            <form method="get" action="">
+                <div class="filter-bar">
+                    <div>
+                        <div class="form-label">Venue</div>
+                        <select name="venue">
+                            <option value="">All Venues</option>
+                            {% for venue in venues %}
+                            <option value="{{ venue.id }}" {% if selected_venue == venue.id|stringformat:"s" %}selected{% endif %}>
+                                {{ venue.venue_name }} — {{ venue.location }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <div class="form-label">Status</div>
+                        <select name="status">
+                            <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Issues</option>
+                            <option value="critical" {% if selected_status == 'critical' %}selected{% endif %}>Critical</option>
+                            <option value="moderate" {% if selected_status == 'moderate' %}selected{% endif %}>Moderate</option>
+                        </select>
+                    </div>
+                    <div style="align-self:flex-end;">
+                        <button type="submit" class="btn-primary-academic" style="padding:8px 20px;">
+                            <i class="fas fa-search me-1"></i>Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback list -->
+    <div class="mb-3"><span class="section-heading" style="font-size:16px;">Reports <span style="font-size:13px; font-weight:400; color:var(--text-3);">({{ feedbacks.count }})</span></span></div>
+
+    {% if feedbacks %}
+        {% for feedback in feedbacks %}
+        <div class="feedback-row {{ feedback.issue_status }}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-size:15px; font-weight:700; color:var(--text-1);">
+                        <i class="fas fa-building me-1" style="color:var(--navy); font-size:13px;"></i>
+                        {{ feedback.venue.venue_name }}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-3); margin-top:2px;">
+                        <i class="fas fa-chalkboard-teacher me-1"></i>{{ feedback.lecturer.get_full_name }}
+                        ({{ feedback.lecturer.username }})
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% if feedback.issue_status == 'critical' %}
+                        <span class="badge-rejected">Critical</span>
+                        <a href="{% url 'admin_resolve_feedback' feedback.id %}"
+                           class="btn-primary-academic" style="font-size:12px; padding:5px 12px;">
+                            <i class="fas fa-check me-1"></i>Resolve
+                        </a>
+                    {% elif feedback.issue_status == 'moderate' %}
+                        <span class="badge-pending">Moderate</span>
+                        <a href="{% url 'admin_resolve_feedback' feedback.id %}"
+                           class="btn-primary-academic" style="font-size:12px; padding:5px 12px; background:var(--navy);">
+                            <i class="fas fa-check me-1"></i>Resolve
+                        </a>
+                    {% else %}
+                        <span class="badge-approved">Solved</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="feedback-text">{{ feedback.feedback_text }}</div>
+            <div class="feedback-meta">
+                <span><i class="fas fa-clock me-1"></i>{{ feedback.created_at|date:"d M Y, H:i" }}</span>
+                <span><i class="fas fa-map-marker-alt me-1"></i>{{ feedback.venue.location }}</span>
+                {% if feedback.replacement_request %}
+                <span><i class="fas fa-link me-1"></i>Related: {{ feedback.replacement_request.subject.subject_code }} · {{ feedback.replacement_request.replacement_date|date:"d M Y" }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="card-academic">
+        <div class="card-academic-body">
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <div style="font-size:15px; font-weight:600; margin-bottom:6px;">No Feedback Reports</div>
+                <p style="font-size:13px;">No venue feedback matching the selected filters.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

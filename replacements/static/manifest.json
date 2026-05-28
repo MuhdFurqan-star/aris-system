@@ -1,0 +1,38 @@
+{
+  "name": "ARIS — Academic Replacement Intelligence System",
+  "short_name": "CRS",
+  "description": "Manage and track class replacement sessions at your institution.",
+  "start_url": "/dashboard/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "My Dashboard",
+      "url": "/dashboard/",
+      "description": "Go to your dashboard"
+    },
+    {
+      "name": "Search Replacements",
+      "url": "/student/search/",
+      "description": "Search replacement classes"
+    }
+  ]
+}

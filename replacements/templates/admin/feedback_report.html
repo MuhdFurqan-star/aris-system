@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% block title %}Venue Issues Report{% endblock %}
+
+{% block extra_css %}
+<style>
+.f-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.f-ctrl {
+    padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13px;
+    background: var(--card-bg); color: var(--text-1); width: 100%;
+}
+.f-ctrl:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(30,58,95,.08); }
+
+.filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: flex-end; }
+
+.feedback-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    transition: box-shadow .2s;
+}
+.feedback-row:hover { box-shadow: var(--shadow-sm); }
+.feedback-row.critical { border-left-color: #9b2c2c; }
+.feedback-row.moderate { border-left-color: #b7791f; }
+
+.stat-card .icon-wrap.blue   { background: #ebf0f8; color: #1e3a5f; }
+.stat-card .icon-wrap.amber  { background: #fef3c7; color: #b7791f; }
+.stat-card .icon-wrap.red    { background: #fff5f5; color: #9b2c2c; }
+
+.meta-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.meta-item { font-size: 12px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
+
+.feedback-quote {
+    background: var(--page-bg); border-radius: var(--radius);
+    padding: 12px 16px; margin: 12px 0;
+    font-size: 13px; color: var(--text-2); font-style: italic; line-height: 1.6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-clipboard-list me-2" style="color:#b7791f;"></i>Venue Issues Report</h1>
+            <p>Review, filter and export all venue issue reports.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{% url 'export_feedback_report_csv' %}" class="btn-outline-academic">
+                <i class="fas fa-file-csv me-1"></i>Export CSV
+            </a>
+            <a href="{% url 'export_feedback_report_pdf' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+               class="btn-primary-academic" style="background:#9b2c2c;">
+                <i class="fas fa-file-pdf me-1"></i>Export PDF
+            </a>
+            <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="stat-card"><div class="icon-wrap blue"><i class="fas fa-clipboard-list"></i></div>
+                <div class="number">{{ total_feedbacks }}</div><div class="label">Total Reports</div></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card"><div class="icon-wrap amber"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="number">{{ moderate_issues }}</div><div class="label">Moderate Issues</div></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="stat-card"><div class="icon-wrap red"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="number">{{ critical_issues }}</div><div class="label">Critical Issues</div></div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card-academic mb-4">
+        <div class="card-academic-header"><i class="fas fa-filter"></i> Filters</div>
+        <div class="card-academic-body">
+            <form method="get" id="filterForm">
+                <div class="filter-row mb-3">
+                    <div>
+                        <div class="f-label">Search</div>
+                        <input type="text" name="search" class="f-ctrl" placeholder="Venue, lecturer, issue…" value="{{ current_search }}">
+                    </div>
+                    <div>
+                        <div class="f-label">Issue Status</div>
+                        <select name="issue_status" class="f-ctrl">
+                            <option value="">All Issues</option>
+                            <option value="moderate" {% if current_issue_status == 'moderate' %}selected{% endif %}>Moderate Issue</option>
+                            <option value="critical" {% if current_issue_status == 'critical' %}selected{% endif %}>Critical Issue</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="f-label">Venue</div>
+                        <select name="venue" class="f-ctrl">
+                            <option value="">All Venues</option>
+                            {% for venue in venues %}
+                            <option value="{{ venue.id }}" {% if current_venue == venue.id|stringformat:"s" %}selected{% endif %}>
+                                {{ venue.venue_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <div class="f-label">Lecturer</div>
+                        <select name="lecturer" class="f-ctrl">
+                            <option value="">All Lecturers</option>
+                            {% for lecturer in lecturers %}
+                            <option value="{{ lecturer.id }}" {% if current_lecturer == lecturer.id|stringformat:"s" %}selected{% endif %}>
+                                {{ lecturer.get_full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div>
+                        <div class="f-label">From Date</div>
+                        <input type="date" name="date_from" class="f-ctrl" value="{{ current_date_from }}">
+                    </div>
+                    <div>
+                        <div class="f-label">To Date</div>
+                        <input type="date" name="date_to" class="f-ctrl" value="{{ current_date_to }}">
+                    </div>
+                    <div style="display:flex; gap:8px; align-self:flex-end;">
+                        <button type="submit" class="btn-primary-academic" style="padding:8px 18px;">
+                            <i class="fas fa-search me-1"></i>Apply
+                        </button>
+                        <a href="{% url 'admin_generate_feedback_report' %}" class="btn-outline-academic" style="padding:8px 18px;">
+                            Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">All Reports</span>
+        <span style="font-size:13px; color:var(--text-3); margin-left:8px;">({{ feedbacks.count }})</span>
+    </div>
+
+    {% if feedbacks %}
+        {% for feedback in feedbacks %}
+        <div class="feedback-row {{ feedback.issue_status }}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <div>
+                    <div style="font-size:15px; font-weight:700; color:var(--text-1); margin-bottom:2px;">
+                        <i class="fas fa-building me-1" style="color:var(--navy); font-size:12px;"></i>
+                        {{ feedback.venue.venue_name }}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-3);">{{ feedback.venue.location }}</div>
+                </div>
+                <div>
+                    {% if feedback.issue_status == 'critical' %}
+                        <span class="badge-rejected">Critical</span>
+                    {% elif feedback.issue_status == 'moderate' %}
+                        <span class="badge-pending">Moderate</span>
+                    {% else %}
+                        <span class="badge-approved">Solved</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="feedback-quote">"{{ feedback.feedback_text }}"</div>
+            <div class="meta-row">
+                <span class="meta-item"><i class="fas fa-chalkboard-teacher" style="color:var(--navy);"></i> {{ feedback.lecturer.get_full_name }}</span>
+                <span class="meta-item"><i class="fas fa-calendar-alt" style="color:var(--navy);"></i> {{ feedback.created_at|date:"d M Y" }}</span>
+                <span class="meta-item"><i class="fas fa-clock" style="color:var(--navy);"></i> {{ feedback.created_at|time:"H:i" }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="card-academic">
+        <div class="card-academic-body">
+            <div style="text-align:center; padding:48px 20px; color:var(--text-3);">
+                <i class="fas fa-inbox" style="font-size:40px; opacity:.2; display:block; margin-bottom:14px;"></i>
+                <div style="font-size:15px; font-weight:600; margin-bottom:6px;">No Reports Found</div>
+                <p style="font-size:13px;">No venue reports match your current filters.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

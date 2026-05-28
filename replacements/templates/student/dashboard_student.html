@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard — ARIS{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Replacement card ────────────────────────────────── */
+.replacement-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--navy);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
+    box-shadow: var(--shadow-xs);
+}
+.replacement-card:hover {
+    border-left-color: var(--gold);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+.replacement-card.past-card {
+    opacity: .72;
+    border-left-color: var(--border);
+}
+.replacement-card.past-card:hover {
+    opacity: 1;
+    border-left-color: var(--text-3);
+}
+
+/* ── Bookmark button ─────────────────────────────────── */
+.bookmark-btn {
+    position: absolute; top: 14px; right: 14px;
+    background: none; border: none;
+    font-size: 18px; cursor: pointer;
+    color: var(--gold);
+    transition: transform .2s, color .2s;
+    padding: 4px;
+    border-radius: 6px;
+}
+.bookmark-btn:hover { transform: scale(1.25); color: #d69e2e; }
+
+/* ── Detail grid ─────────────────────────────────────── */
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+}
+.detail-box {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px;
+    background: var(--page-bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+}
+.detail-box i { color: var(--navy); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
+.detail-label { font-size: 10px; font-weight: 800; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.detail-value { font-size: 13px; font-weight: 600; color: var(--text-1); }
+
+/* ── Tabs override ───────────────────────────────────── */
+.nav-tabs-academic .nav-link { padding: 10px 20px; font-size: 13px; font-weight: 700; }
+
+/* ── Empty state ─────────────────────────────────────── */
+.empty-state { text-align: center; padding: 52px 20px; color: var(--text-3); }
+.empty-state i { font-size: 44px; opacity: .18; margin-bottom: 16px; display: block; color: var(--navy); }
+.empty-state .es-title { font-size: 15px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+.empty-state .es-sub   { font-size: 13px; color: var(--text-3); margin-bottom: 16px; }
+
+@keyframes fadeOut { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(.95); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- ── Page Banner ──────────────────────────────── -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1>
+                <i class="fas fa-user-graduate me-2" style="color:var(--gold);"></i>
+                Student Dashboard
+            </h1>
+            <p>Welcome back, <strong style="color:rgba(255,255,255,.9);">{{ user.get_full_name|default:user.username }}</strong>. Track your bookmarked replacement classes below.</p>
+        </div>
+        <div style="position:relative; z-index:1;">
+            <a href="{% url 'student_search_replacements' %}" class="btn-gold">
+                <i class="fas fa-search"></i> Find Classes
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Stats Row ────────────────────────────────── -->
+    <div class="stat-grid mb-4" style="grid-template-columns: repeat(3,1fr);">
+        <div class="stat-card">
+            <div class="icon-wrap blue"><i class="fas fa-bookmark"></i></div>
+            <div class="number">{{ upcoming_bookmarks.count }}</div>
+            <div class="label">Upcoming Bookmarks</div>
+        </div>
+        <div class="stat-card accent-gold">
+            <div class="icon-wrap gold"><i class="fas fa-history"></i></div>
+            <div class="number">{{ past_bookmarks.count }}</div>
+            <div class="label">Past Bookmarks</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="icon-wrap green"><i class="fas fa-layer-group"></i></div>
+            <div class="number">{{ upcoming_bookmarks.count|add:past_bookmarks.count }}</div>
+            <div class="label">Total Bookmarked</div>
+        </div>
+    </div>
+
+    <!-- ── Quick Actions ────────────────────────────── -->
+    <div class="mb-3"><span class="section-heading" style="font-size:16px;">Quick Actions</span></div>
+    <div class="action-grid mb-4">
+        <a href="{% url 'student_search_replacements' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-search"></i></div>
+            Search Classes
+        </a>
+        <a href="{% url 'timetable_view' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-calendar-alt"></i></div>
+            Timetable
+        </a>
+        <a href="{% url 'chatbot_view' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-robot"></i></div>
+            Ask Assistant
+        </a>
+        <a href="{% url 'export_ical_bookmarks' %}" class="action-card">
+            <div class="ac-icon"><i class="fas fa-calendar-plus"></i></div>
+            Export Calendar
+        </a>
+    </div>
+
+    <!-- ── Bookmarked Classes ────────────────────────── -->
+    <div class="mb-3"><span class="section-heading" style="font-size:16px;">My Bookmarked Classes</span></div>
+    <div class="card-academic mb-4">
+        <div class="card-academic-header">
+            <i class="fas fa-star" style="color:var(--gold);"></i> My Bookmarks
+            <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">
+                {{ upcoming_bookmarks.count|add:past_bookmarks.count }} total
+            </span>
+        </div>
+        <div class="card-academic-body">
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs-academic mb-4" id="bookmarkTabs">
+                <li class="nav-item">
+                    <button class="nav-link active" data-tab="upcoming">
+                        <i class="fas fa-calendar-alt"></i>
+                        Upcoming
+                        <span class="badge-pending ms-1" style="font-size:10px;">{{ upcoming_bookmarks.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="past">
+                        <i class="fas fa-history"></i>
+                        Past
+                        <span style="background:var(--border); color:var(--text-2); font-size:10px; padding:2px 8px; border-radius:10px; font-weight:800;" class="ms-1">{{ past_bookmarks.count }}</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Upcoming tab -->
+            <div class="tab-pane" id="upcoming-tab">
+                {% if upcoming_bookmarks %}
+                    {% for replacement in upcoming_bookmarks %}
+                    <div class="replacement-card">
+                        <button class="bookmark-btn" data-replacement-id="{{ replacement.id }}" title="Remove bookmark">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <div style="padding-right:40px;">
+                            <div style="font-size:15px; font-weight:800; color:var(--text-1); margin-bottom:3px;">
+                                {{ replacement.subject.subject_code }}
+                                <span style="font-weight:500; color:var(--text-2);"> — {{ replacement.subject.subject_name }}</span>
+                            </div>
+                            <div style="font-size:11px; color:var(--text-3); margin-bottom:4px;">
+                                <i class="fas fa-layer-group me-1"></i>
+                                Semester {{ replacement.subject.semester.name }} &middot; Class {{ replacement.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <div class="detail-grid">
+                            <div class="detail-box">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                                <div><div class="detail-label">Lecturer</div><div class="detail-value">{{ replacement.lecturer.get_full_name }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-calendar-alt"></i>
+                                <div><div class="detail-label">Date</div><div class="detail-value">{{ replacement.replacement_date|date:"l, d M Y" }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-clock"></i>
+                                <div><div class="detail-label">Time</div><div class="detail-value">{{ replacement.replacement_time_slot }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-building"></i>
+                                <div><div class="detail-label">Venue</div><div class="detail-value">{{ replacement.venue.venue_name }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <div><div class="detail-label">Location</div><div class="detail-value">{{ replacement.venue.location }}</div></div>
+                            </div>
+                        </div>
+                        {% with bookmark=replacement.bookmarked_by.all|first %}
+                            {% if bookmark.notes %}
+                            <div class="note-box">
+                                <div class="note-box-label"><i class="fas fa-sticky-note me-1"></i> My Notes</div>
+                                <div class="note-box-text">{{ bookmark.notes }}</div>
+                            </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <div class="es-title">No Upcoming Bookmarks</div>
+                    <p class="es-sub">You haven't bookmarked any upcoming replacement classes yet.</p>
+                    <a href="{% url 'student_search_replacements' %}" class="btn-primary-academic">
+                        <i class="fas fa-search me-1"></i> Find &amp; Bookmark Classes
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Past tab -->
+            <div class="tab-pane" id="past-tab" style="display:none;">
+                {% if past_bookmarks %}
+                    {% for replacement in past_bookmarks %}
+                    <div class="replacement-card past-card">
+                        <button class="bookmark-btn" data-replacement-id="{{ replacement.id }}" title="Remove bookmark">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <div style="padding-right:40px;">
+                            <div style="font-size:15px; font-weight:800; color:var(--text-1); margin-bottom:3px;">
+                                {{ replacement.subject.subject_code }}
+                                <span style="font-weight:500; color:var(--text-2);"> — {{ replacement.subject.subject_name }}</span>
+                            </div>
+                            <div style="font-size:11px; color:var(--text-3);">
+                                <i class="fas fa-layer-group me-1"></i>
+                                Semester {{ replacement.subject.semester.name }} &middot; Class {{ replacement.subject.semester.class_name }}
+                            </div>
+                        </div>
+                        <div class="detail-grid">
+                            <div class="detail-box">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                                <div><div class="detail-label">Lecturer</div><div class="detail-value">{{ replacement.lecturer.get_full_name }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-calendar-alt"></i>
+                                <div><div class="detail-label">Date</div><div class="detail-value">{{ replacement.replacement_date|date:"l, d M Y" }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-clock"></i>
+                                <div><div class="detail-label">Time</div><div class="detail-value">{{ replacement.replacement_time_slot }}</div></div>
+                            </div>
+                            <div class="detail-box">
+                                <i class="fas fa-building"></i>
+                                <div><div class="detail-label">Venue</div><div class="detail-value">{{ replacement.venue.venue_name }}</div></div>
+                            </div>
+                        </div>
+                        {% with bookmark=replacement.bookmarked_by.all|first %}
+                            {% if bookmark.notes %}
+                            <div class="note-box">
+                                <div class="note-box-label"><i class="fas fa-sticky-note me-1"></i> My Notes</div>
+                                <div class="note-box-text">{{ bookmark.notes }}</div>
+                            </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <div class="es-title">No Past Bookmarks</div>
+                    <p class="es-sub">No past bookmarked classes to display.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Tab switching ─────────────────── */
+document.querySelectorAll('#bookmarkTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('#bookmarkTabs .nav-link').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const tab = this.dataset.tab;
+        document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+        document.getElementById(tab + '-tab').style.display = 'block';
+    });
+});
+/* Show first tab properly */
+document.getElementById('upcoming-tab').style.display = 'block';
+
+/* ── CSRF helper ───────────────────── */
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) v = decodeURIComponent(c.slice(name.length + 1));
+        });
+    }
+    return v;
+}
+
+/* ── Bookmark toggle ───────────────── */
+document.querySelectorAll('.bookmark-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const id = this.dataset.replacementId;
+        this.disabled = true;
+        fetch(`/student/bookmark/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'removed' || data.status === 'success') {
+                const card = this.closest('.replacement-card');
+                if (card) {
+                    card.style.animation = 'fadeOut .3s ease forwards';
+                    setTimeout(() => card.remove(), 300);
+                }
+            } else { location.reload(); }
+        })
+        .catch(() => { this.disabled = false; });
+    });
+});
+</script>
+{% endblock %}

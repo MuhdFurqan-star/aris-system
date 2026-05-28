@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Delete User{% endblock %}
+{% block content %}
+<div class="page-wrap" style="max-width:520px; margin:0 auto;">
+    <div class="page-banner mb-4">
+        <h1><i class="fas fa-user-times me-2" style="color:#9b2c2c;"></i>Remove Account</h1>
+        <p>This action is permanent and cannot be undone.</p>
+    </div>
+    <div class="card-academic">
+        <div class="card-academic-header" style="background:#fff5f5; color:#9b2c2c; border-bottom-color:#fed7d7;">
+            <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+        </div>
+        <div class="card-academic-body">
+            <p style="font-size:14px; margin-bottom:6px;">
+                You are about to permanently delete the account of:
+            </p>
+            <div style="background:var(--page-bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:16px;">
+                <strong style="font-size:15px;">{{ target.get_full_name|default:target.username }}</strong><br>
+                <span style="font-size:12px; color:var(--text-2);">
+                    {{ profile.get_user_type_display }} &bull; {{ target.email|default:"No email" }}
+                    {% if profile.user_type == 'student' %}&bull; ID: {{ profile.student_id }}
+                    {% else %}&bull; EID: {{ profile.employee_id }}{% endif %}
+                </span>
+            </div>
+            <p style="font-size:13px; color:#9b2c2c; margin-bottom:20px;">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                All associated data (bookmarks, attendance records, requests) will also be removed.
+            </p>
+            <form method="POST" style="display:flex; gap:10px;">
+                {% csrf_token %}
+                <button type="submit" class="btn-primary-academic" style="flex:1; justify-content:center; background:#9b2c2c; padding:11px;">
+                    <i class="fas fa-trash me-1"></i>Yes, Delete Account
+                </button>
+                <a href="{% url 'admin_manage_users' %}" class="btn-outline-academic" style="flex:1; justify-content:center; padding:11px;">
+                    Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

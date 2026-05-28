@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block title %}Weekly Timetable{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Week navigation ────────────────────────────────── */
+.week-nav { display:flex; align-items:center; gap:10px; }
+.week-nav a {
+    background:var(--card-bg); color:var(--text-2);
+    border:1px solid var(--border); padding:8px 16px;
+    border-radius:var(--radius); font-weight:700;
+    text-decoration:none; transition:all .2s; font-size:13px;
+}
+.week-nav a:hover { border-color:var(--navy); color:var(--navy); }
+.week-label {
+    color:#fff; font-weight:700; font-size:14px;
+    min-width:190px; text-align:center;
+}
+
+/* ── Timetable table ─────────────────────────────────── */
+.timetable-wrap { overflow-x:auto; }
+.timetable {
+    width:100%; border-collapse:separate; border-spacing:3px;
+    min-width:750px;
+}
+.timetable thead th {
+    background:var(--navy); color:#fff;
+    padding:12px 8px; border-radius:var(--radius);
+    font-weight:700; font-size:12px; text-align:center;
+}
+.timetable thead th.today-col { background:#b7791f; }
+
+.slot-label {
+    color:var(--text-3); font-size:11px; font-weight:700;
+    text-align:right; padding:4px 10px; white-space:nowrap;
+    vertical-align:top; width:80px;
+    border:none; background:transparent;
+}
+.timetable td.tt-cell {
+    background:var(--page-bg); border-radius:var(--radius);
+    vertical-align:top; padding:4px; min-width:130px;
+    border:1px solid var(--border);
+}
+.timetable td.tt-cell.today-col  { background:#fef3c7; border-color:#fbd38d; }
+.timetable td.tt-cell.empty-cell { background:var(--card-bg); }
+.timetable td.tt-cell.today-col.empty-cell { background:#fffbeb; }
+
+/* ── Class cards ─────────────────────────────────────── */
+.class-card {
+    border-radius:7px; padding:8px 10px; margin-bottom:3px;
+    position:relative; overflow:hidden;
+}
+
+/* Regular class — navy theme */
+.class-card.regular {
+    background:linear-gradient(135deg, var(--navy) 0%, #2d5282 100%);
+    color:#fff;
+    border-left:none;
+    box-shadow:0 2px 6px rgba(30,58,95,.25);
+}
+.class-card.regular .cc-code  { font-weight:800; font-size:12px; color:#fff; }
+.class-card.regular .cc-name  { font-size:10px; color:rgba(255,255,255,.8); margin-top:1px; line-height:1.3; }
+.class-card.regular .cc-meta  { font-size:10px; color:rgba(255,255,255,.7); margin-top:4px; }
+.class-card.regular .cc-time  {
+    font-size:10px; font-weight:700; color:rgba(255,255,255,.9);
+    background:rgba(255,255,255,.15); border-radius:4px;
+    padding:1px 6px; display:inline-block; margin-top:3px;
+}
+
+/* Replacement class — gold/amber theme */
+.class-card.replacement {
+    background:linear-gradient(135deg, #744210 0%, #92400e 100%);
+    color:#fff;
+    box-shadow:0 2px 6px rgba(116,66,16,.30);
+    border:1px solid #b7791f;
+}
+.class-card.replacement .cc-code  { font-weight:800; font-size:12px; color:#fef3c7; }
+.class-card.replacement .cc-name  { font-size:10px; color:rgba(255,236,153,.85); margin-top:1px; line-height:1.3; }
+.class-card.replacement .cc-meta  { font-size:10px; color:rgba(255,236,153,.75); margin-top:4px; }
+.class-card.replacement .cc-time  {
+    font-size:10px; font-weight:700; color:#fff;
+    background:rgba(255,255,255,.2); border-radius:4px;
+    padding:1px 6px; display:inline-block; margin-top:3px;
+}
+.cc-badge {
+    position:absolute; top:5px; right:5px;
+    font-size:8px; font-weight:800; letter-spacing:.5px;
+    background:rgba(255,255,255,.25); color:#fff;
+    padding:1px 5px; border-radius:3px;
+    text-transform:uppercase;
+}
+.cc-orig {
+    margin-top:4px; font-size:10px;
+    color:rgba(255,236,153,.7);
+    border-top:1px solid rgba(255,255,255,.15);
+    padding-top:3px;
+}
+
+/* Cal link */
+.cal-link {
+    display:inline-flex; align-items:center; gap:3px;
+    font-size:9px; font-weight:700; color:rgba(255,255,255,.85);
+    text-decoration:none; margin-top:4px;
+    background:rgba(255,255,255,.15); border-radius:3px; padding:2px 5px;
+    transition:background .15s;
+}
+.cal-link:hover { background:rgba(255,255,255,.30); color:#fff; }
+
+/* ── Legend ──────────────────────────────────────────── */
+.legend { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; }
+.legend-item { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); }
+.legend-dot {
+    width:14px; height:14px; border-radius:4px; flex-shrink:0;
+}
+.ld-regular     { background:var(--navy); }
+.ld-replacement { background:#92400e; }
+.ld-today       { background:#fbd38d; border:1px solid #f6ad55; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4"
+         style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-calendar-week me-2" style="color:#b7791f;"></i>Weekly Timetable</h1>
+            <p>Regular classes &amp; replacement classes — week of {{ monday|date:"d M Y" }}</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            {% if user_type == 'student' %}
+            <a href="{% url 'export_ical_bookmarks' %}" class="btn-outline-academic">
+                <i class="fas fa-calendar-plus me-1"></i>Export (.ics)
+            </a>
+            {% endif %}
+            <div class="week-nav">
+                <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
+                <span class="week-label">{{ monday|date:"d M" }} – {{ week_days.4|date:"d M Y" }}</span>
+                <a href="?week={{ week_offset|add:'1' }}"><i class="fas fa-chevron-right"></i></a>
+            </div>
+            {% if week_offset != 0 %}
+            <a href="?week=0" class="btn-outline-academic" style="padding:7px 14px;">Today</a>
+            {% endif %}
+            <a href="{% url 'dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="card-academic">
+        <div class="timetable-wrap" style="padding:8px;">
+            <table class="timetable">
+                <thead>
+                    <tr>
+                        <th style="width:80px; background:var(--page-bg); color:var(--text-3); border:1px solid var(--border);">Time</th>
+                        {% for day in week_days %}
+                        <th class="{% if day == today %}today-col{% endif %}">
+                            {{ day|date:"D" }}<br>
+                            <span style="font-size:18px; font-weight:900; color:#fff;">{{ day|date:"d" }}</span>
+                            <br><span style="font-size:10px; opacity:.8;">{{ day|date:"M Y" }}</span>
+                            {% if day == today %}
+                            <br><span style="font-size:10px; background:rgba(255,255,255,.25); border-radius:4px; padding:1px 6px;">TODAY</span>
+                            {% endif %}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        {% for cell in row %}
+                        {% if cell.type == 'time' %}
+                        <td class="slot-label">{{ cell.label }}</td>
+
+                        {% elif cell.type == 'cell' %}
+                        <td class="tt-cell {% if cell.is_today %}today-col{% endif %} {% if cell.is_empty %}empty-cell{% endif %}"
+                            {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}>
+
+                            {% for item in cell.items %}
+
+                            {% if item.type == 'regular' %}
+                            <!-- ── Regular class card ── -->
+                            <div class="class-card regular"
+                                 title="{{ item.name }} | {{ item.sem }}">
+                                <div class="cc-code">
+                                    <i class="fas fa-book-open" style="font-size:9px; margin-right:3px; opacity:.8;"></i>
+                                    {{ item.code }}
+                                </div>
+                                <div class="cc-name">{{ item.name|truncatechars:40 }}</div>
+                                <div class="cc-meta">
+                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:25 }}
+                                </div>
+                                <div class="cc-time">
+                                    <i class="fas fa-clock" style="font-size:8px;"></i>
+                                    {{ item.start }} – {{ item.end }}
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'replacement' %}
+                            <!-- ── Replacement class card ── -->
+                            <div class="class-card replacement"
+                                 title="{{ item.name }} | Replacement for {{ item.original_date }}">
+                                <span class="cc-badge">Replace</span>
+                                <div class="cc-code">
+                                    <i class="fas fa-exchange-alt" style="font-size:9px; margin-right:3px; opacity:.8;"></i>
+                                    {{ item.code }}
+                                </div>
+                                <div class="cc-name">{{ item.name|truncatechars:38 }}</div>
+                                <div class="cc-meta">
+                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:25 }}
+                                </div>
+                                <div class="cc-meta">
+                                    <i class="fas fa-map-marker-alt" style="font-size:9px;"></i> {{ item.venue }}
+                                </div>
+                                <div class="cc-time">
+                                    <i class="fas fa-clock" style="font-size:8px;"></i>
+                                    {{ item.start }} – {{ item.end }}
+                                </div>
+                                <div class="cc-orig">
+                                    <i class="fas fa-undo" style="font-size:8px;"></i>
+                                    Orig: {{ item.original_date }} · {{ item.original_slot }}
+                                </div>
+                                <a href="{% url 'export_ical_single' item.req_id %}" class="cal-link">
+                                    <i class="fas fa-calendar-plus"></i> +Cal
+                                </a>
+                            </div>
+                            {% endif %}
+
+                            {% endfor %}
+                        </td>
+
+                        {% endif %}
+                        {# type == 'skip' → render nothing (covered by rowspan above) #}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-dot ld-regular"></div>
+            Regular class
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot ld-replacement"></div>
+            Replacement class
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot ld-today"></div>
+            Today
+        </div>
+        <div class="legend-item">
+            <i class="fas fa-calendar-plus" style="color:var(--text-3); font-size:12px;"></i>
+            Click +Cal to add to Google / Apple Calendar
+        </div>
+    </div>
+
+</div>
+{% endblock %}

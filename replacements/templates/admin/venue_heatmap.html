@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Venue Usage Heatmap{% endblock %}
+
+{% block extra_css %}
+<style>
+.heatmap-table { width: 100%; border-collapse: separate; border-spacing: 3px; min-width: 600px; }
+.heatmap-table th {
+    padding: 9px 8px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .4px;
+    background: var(--page-bg); color: var(--text-3);
+    border-radius: 4px; text-align: center;
+    border: 1px solid var(--border);
+}
+.heatmap-table .slot-label {
+    font-size: 11px; font-weight: 600; color: var(--text-3);
+    white-space: nowrap; padding: 0 10px 0 0; text-align: right;
+    vertical-align: middle;
+}
+.heat-cell {
+    width: 68px; height: 40px; border-radius: 6px;
+    text-align: center; vertical-align: middle;
+    font-size: 13px; font-weight: 700; cursor: default;
+    transition: transform .15s; position: relative;
+}
+.heat-cell:hover { transform: scale(1.15); z-index: 10; }
+
+.legend {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-3); margin-top: 12px; flex-wrap: wrap;
+}
+.legend-bar { display: flex; height: 14px; border-radius: 6px; overflow: hidden; width: 140px; }
+.legend-seg { flex: 1; }
+
+.venue-badge {
+    display: inline-block; background: var(--navy); color: white;
+    border-radius: var(--radius); padding: 5px 14px;
+    font-weight: 700; font-size: 13px; margin-bottom: 14px;
+}
+
+.stat-card .icon-wrap.blue   { background: #ebf0f8; color: #1e3a5f; }
+.stat-card .icon-wrap.green  { background: #f0fff4; color: #276749; }
+.stat-card .icon-wrap.amber  { background: #fef3c7; color: #b7791f; }
+.stat-card .icon-wrap.violet { background: #f5f0ff; color: #553c9a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-th me-2" style="color:#b7791f;"></i>Venue Usage Heatmap</h1>
+            <p>Colour intensity shows how frequently each venue is booked per day and time slot.</p>
+        </div>
+        <a href="{% url 'admin_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card"><div class="icon-wrap blue"><i class="fas fa-building"></i></div>
+                <div class="number">{{ venues|length }}</div><div class="label">Active Venues</div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card"><div class="icon-wrap amber"><i class="fas fa-fire"></i></div>
+                <div class="number">{{ max_count }}</div><div class="label">Peak Bookings</div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card"><div class="icon-wrap green"><i class="fas fa-calendar-week"></i></div>
+                <div class="number">5</div><div class="label">Days Tracked</div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card"><div class="icon-wrap violet"><i class="fas fa-clock"></i></div>
+                <div class="number">{{ time_slots|length }}</div><div class="label">Time Slots</div></div>
+        </div>
+    </div>
+
+    <!-- Overall heatmap -->
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">Overall Usage</span>
+        <span style="font-size:13px; color:var(--text-3); margin-left:8px;">All venues combined</span>
+    </div>
+    <div class="card-academic mb-4">
+        <div style="overflow-x:auto; padding:16px;">
+            <table class="heatmap-table">
+                <thead>
+                    <tr>
+                        <th>Time Slot</th>
+                        {% for day in day_names %}<th>{{ day }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in overall_rows %}
+                    <tr>
+                        <td class="slot-label">{{ row.slot }}</td>
+                        {% for cell in row.cells %}
+                        <td>
+                            <div class="heat-cell"
+                                 title="{{ cell.count }} booking(s)"
+                                 style="background: {% if cell.count == 0 %}var(--page-bg); color:var(--border);{% elif cell.intensity < 25 %}rgba(198,246,213,{{ cell.intensity|add:40 }}%); color:#276749;{% elif cell.intensity < 50 %}rgba(251,191,36,.65); color:#78350f;{% elif cell.intensity < 75 %}rgba(251,146,60,.75); color:#7c2d12;{% else %}rgba(239,68,68,.8); color:#7f1d1d;{% endif %}">
+                                {{ cell.count }}
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="legend">
+                <span>Low</span>
+                <div class="legend-bar">
+                    <div class="legend-seg" style="background:#c6f6d5;"></div>
+                    <div class="legend-seg" style="background:#fde68a;"></div>
+                    <div class="legend-seg" style="background:#fb923c;"></div>
+                    <div class="legend-seg" style="background:#ef4444;"></div>
+                </div>
+                <span>High</span>
+                &nbsp;
+                <span style="background:var(--page-bg); padding:2px 8px; border-radius:4px; border:1px solid var(--border);">0 = No bookings</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-venue heatmaps -->
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">Per-Venue Breakdown</span>
+    </div>
+    {% for item in heatmap_data %}
+    <div class="card-academic mb-4">
+        <div class="card-academic-header">
+            <i class="fas fa-building"></i> {{ item.venue.venue_name }} &mdash; {{ item.venue.location }}
+            <span style="font-size:12px; font-weight:400; margin-left:8px; color:var(--text-3);">Capacity: {{ item.venue.capacity }}</span>
+        </div>
+        <div style="overflow-x:auto; padding:16px;">
+            <table class="heatmap-table">
+                <thead>
+                    <tr>
+                        <th>Time Slot</th>
+                        {% for day in day_names %}<th>{{ day }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in item.rows %}
+                    <tr>
+                        <td class="slot-label">{{ row.slot }}</td>
+                        {% for cell in row.cells %}
+                        <td>
+                            <div class="heat-cell"
+                                 title="{{ cell.count }} booking(s) at {{ item.venue.venue_name }}"
+                                 style="background: {% if cell.count == 0 %}var(--page-bg); color:var(--border);{% elif cell.intensity < 30 %}rgba(198,246,213,.8); color:#276749;{% elif cell.intensity < 60 %}rgba(251,191,36,.7); color:#78350f;{% elif cell.intensity < 85 %}rgba(251,146,60,.8); color:#7c2d12;{% else %}rgba(239,68,68,.85); color:#7f1d1d;{% endif %}">
+                                {{ cell.count }}
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card-academic">
+        <div class="card-academic-body">
+            <div style="text-align:center; padding:40px; color:var(--text-3);">
+                <i class="fas fa-inbox" style="font-size:36px; opacity:.2; display:block; margin-bottom:12px;"></i>
+                No approved bookings yet to display.
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+{% endblock %}

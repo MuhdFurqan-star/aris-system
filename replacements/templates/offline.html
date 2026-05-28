@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline — ARIS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            background: #f0f4f8;
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background: white;
+            border: 1px solid #d1dbe8;
+            border-top: 4px solid #1e3a5f;
+            border-radius: 12px;
+            padding: 44px 40px;
+            text-align: center;
+            max-width: 420px; width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,.08);
+        }
+        .icon-wrap {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: #ebf0f8; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; font-size: 30px; color: #1e3a5f;
+        }
+        .wordmark {
+            font-family: 'Merriweather', serif;
+            font-size: 13px; font-weight: 700; color: #1e3a5f;
+            letter-spacing: .5px; text-transform: uppercase;
+            margin-bottom: 24px; opacity: .6;
+        }
+        h1 { font-size: 1.5rem; font-weight: 700; color: #1a202c; margin-bottom: 10px; }
+        p  { color: #718096; line-height: 1.65; margin-bottom: 28px; font-size: 14px; }
+        .btn {
+            display: inline-block; padding: 12px 32px;
+            background: #1e3a5f; color: white;
+            border: none; border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700; font-size: 14px;
+            cursor: pointer; text-decoration: none;
+            transition: background .2s, transform .15s;
+        }
+        .btn:hover { background: #162e4a; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="wordmark">ARIS</div>
+        <div class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                <path d="M10.71 5.05A16 16 0 0 1 22.56 9"></path>
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+        </div>
+        <h1>You're Offline</h1>
+        <p>No internet connection detected. Please check your network and try again. Your data will sync automatically when you're back online.</p>
+        <button class="btn" onclick="window.location.reload()">
+            Try Again
+        </button>
+    </div>
+</body>
+</html>

@@ -1,0 +1,614 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dashboard — Administrator{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Analytics KPI strip ──────────────────────────── */
+.a-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@media (max-width: 768px) { .a-kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+.a-kpi-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 8px rgba(30,58,95,.07);
+    transition: box-shadow .2s, transform .2s;
+}
+.a-kpi-card:hover { box-shadow: 0 4px 16px rgba(30,58,95,.12); transform: translateY(-2px); }
+
+.a-kpi-icon {
+    width: 46px; height: 46px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+}
+.a-kpi-icon.blue  { background: linear-gradient(135deg, #ebf0f8, #dbe6f5); color: var(--navy); }
+.a-kpi-icon.green { background: linear-gradient(135deg, #e8f8f0, #d4f0e2); color: #276749; }
+.a-kpi-icon.gold  { background: linear-gradient(135deg, #fef3c7, #fde8a3); color: var(--gold); }
+.a-kpi-icon.red   { background: linear-gradient(135deg, #fff0f0, #ffd5d5); color: #9b2c2c; }
+
+.a-kpi-value { font-size: 28px; font-weight: 900; color: var(--navy); line-height: 1; margin-bottom: 3px; }
+.a-kpi-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; }
+.a-kpi-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Analytics chart grids ────────────────────────── */
+.a-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 14px;
+}
+@media (max-width: 1024px) { .a-chart-grid { grid-template-columns: 1fr; } }
+
+.a-chart-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+@media (max-width: 768px) { .a-chart-grid-2 { grid-template-columns: 1fr; } }
+
+/* ── Donut overlay ────────────────────────────────── */
+.a-donut-wrap { position: relative; }
+.a-donut-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none;
+}
+.a-dc-pct { font-size: 26px; font-weight: 900; color: var(--navy); line-height: 1; }
+.a-dc-lbl { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+/* ── Breakdown bars (shared) ──────────────────────── */
+.a-sb-list   { display: flex; flex-direction: column; gap: 9px; }
+.a-sb-row    { display: flex; align-items: center; gap: 8px; }
+.a-sb-dot    { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.a-sb-label  { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; min-width: 55px; }
+.a-sb-bar-wrap { flex: 1.5; height: 6px; background: var(--border-light); border-radius: 99px; overflow: hidden; }
+.a-sb-bar    { height: 100%; border-radius: 99px; transition: width .6s ease; }
+.a-sb-num    { font-size: 12px; font-weight: 800; color: var(--text-1); min-width: 24px; text-align: right; }
+.a-sb-pct    { font-size: 11px; color: var(--text-3); min-width: 34px; text-align: right; }
+
+/* ── Chart note ───────────────────────────────────── */
+.a-chart-note {
+    font-size: 11px; color: var(--text-3); margin: 0;
+    display: flex; align-items: center; gap: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- ── Page Banner ───────────────────────────── -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1>
+                <i class="fas fa-shield-alt me-2" style="color:var(--gold);"></i>
+                Administrator Dashboard
+            </h1>
+            <p>Welcome back, <strong style="color:rgba(255,255,255,.9);">{{ request.user.get_full_name }}</strong>. Here is your system overview.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; position:relative; z-index:1;">
+            <span style="font-size:11px; color:rgba(255,255,255,.4); letter-spacing:.4px; text-transform:uppercase;">
+                <i class="fas fa-circle" style="color:#38a169; font-size:7px; margin-right:5px;"></i>System Live
+            </span>
+            <span style="font-size:11px; color:rgba(255,255,255,.35);">
+                <i class="fas fa-clock me-1"></i>Updated just now
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Stats Row ─────────────────────────────── -->
+    <div class="stat-grid mb-4">
+        <div class="stat-card accent-blue">
+            <div class="icon-wrap blue"><i class="fas fa-hourglass-half"></i></div>
+            <div class="number">{{ total_pending }}</div>
+            <div class="label">Pending Requests</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="icon-wrap green"><i class="fas fa-check-circle"></i></div>
+            <div class="number">{{ total_approved_today }}</div>
+            <div class="label">Approved Today</div>
+        </div>
+        <div class="stat-card accent-blue">
+            <div class="icon-wrap blue"><i class="fas fa-building"></i></div>
+            <div class="number">{{ total_venues }}</div>
+            <div class="label">Active Venues</div>
+        </div>
+        <div class="stat-card accent-gold">
+            <div class="icon-wrap gold"><i class="fas fa-comment-alt"></i></div>
+            <div class="number">{{ total_feedback }}</div>
+            <div class="label">Feedback Reports</div>
+        </div>
+    </div>
+
+    <!-- ── Analytics ───────────────────────────────── -->
+    <div class="mb-3" style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+        <span class="section-heading" style="font-size:16px;">Analytics Overview</span>
+        <span style="font-size:12px; color:var(--text-3);">System-wide replacement request intelligence</span>
+    </div>
+
+    <!-- Analytics KPI strip -->
+    <div class="a-kpi-strip mb-3">
+        <div class="a-kpi-card">
+            <div class="a-kpi-icon blue"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="a-kpi-value" id="akpi-total">—</div>
+                <div class="a-kpi-label">Total Requests</div>
+                <div class="a-kpi-sub" id="akpi-total-sub">All time</div>
+            </div>
+        </div>
+        <div class="a-kpi-card">
+            <div class="a-kpi-icon green"><i class="fas fa-percentage"></i></div>
+            <div>
+                <div class="a-kpi-value" id="akpi-rate">—</div>
+                <div class="a-kpi-label">Approval Rate</div>
+                <div class="a-kpi-sub" id="akpi-rate-sub">of all requests</div>
+            </div>
+        </div>
+        <div class="a-kpi-card">
+            <div class="a-kpi-icon gold"><i class="fas fa-hourglass-half"></i></div>
+            <div>
+                <div class="a-kpi-value" id="akpi-pending">{{ total_pending }}</div>
+                <div class="a-kpi-label">Awaiting Review</div>
+                <div class="a-kpi-sub">Pending approval</div>
+            </div>
+        </div>
+        <div class="a-kpi-card">
+            <div class="a-kpi-icon red"><i class="fas fa-exclamation-circle"></i></div>
+            <div>
+                <div class="a-kpi-value" id="akpi-critical">—</div>
+                <div class="a-kpi-label">Critical Feedback</div>
+                <div class="a-kpi-sub">Urgent venue issues</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 1: Monthly trend + System status -->
+    <div class="a-chart-grid mb-3">
+
+        <!-- Monthly Trend -->
+        <div class="card-academic" style="min-width:0;">
+            <div class="card-academic-header">
+                <i class="fas fa-chart-line"></i> Monthly Replacement Trend
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">Last 6 months</span>
+            </div>
+            <div class="card-academic-body">
+                <div style="height:240px;"><canvas id="monthlyChart"></canvas></div>
+                <p class="a-chart-note mt-2">
+                    <i class="fas fa-info-circle"></i>
+                    Shows total requests submitted per month, broken down by approval status.
+                </p>
+            </div>
+        </div>
+
+        <!-- System Status Donut -->
+        <div class="card-academic" style="min-width:0;">
+            <div class="card-academic-header">
+                <i class="fas fa-chart-pie"></i> System Request Status
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">All requests</span>
+            </div>
+            <div class="card-academic-body">
+                <div class="a-donut-wrap" style="height:170px;">
+                    <canvas id="statusChart"></canvas>
+                    <div class="a-donut-center">
+                        <div class="a-dc-pct" id="status-center-pct">—</div>
+                        <div class="a-dc-lbl">approved</div>
+                    </div>
+                </div>
+                <div class="a-sb-list mt-3" id="statusBreakdown">
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#276749;"></span>
+                        <span class="a-sb-label">Approved</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="asb-approved" style="width:0%;background:#276749;"></div></div>
+                        <span class="a-sb-num" id="asbn-approved">—</span>
+                        <span class="a-sb-pct" id="asbp-approved">—</span>
+                    </div>
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#b7791f;"></span>
+                        <span class="a-sb-label">Pending</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="asb-pending" style="width:0%;background:#b7791f;"></div></div>
+                        <span class="a-sb-num" id="asbn-pending">—</span>
+                        <span class="a-sb-pct" id="asbp-pending">—</span>
+                    </div>
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#9b2c2c;"></span>
+                        <span class="a-sb-label">Rejected</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="asb-rejected" style="width:0%;background:#9b2c2c;"></div></div>
+                        <span class="a-sb-num" id="asbn-rejected">—</span>
+                        <span class="a-sb-pct" id="asbp-rejected">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Venues + Feedback -->
+    <div class="a-chart-grid-2 mb-4">
+
+        <!-- Top Venues -->
+        <div class="card-academic" style="min-width:0;">
+            <div class="card-academic-header">
+                <i class="fas fa-building"></i> Top 5 Venues by Usage
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">By booking count</span>
+            </div>
+            <div class="card-academic-body">
+                <div style="height:200px;"><canvas id="venueChart"></canvas></div>
+                <p class="a-chart-note mt-2">
+                    <i class="fas fa-info-circle"></i>
+                    Most-booked replacement class venues across all lecturers.
+                </p>
+            </div>
+        </div>
+
+        <!-- Feedback Severity -->
+        <div class="card-academic" style="min-width:0;">
+            <div class="card-academic-header">
+                <i class="fas fa-exclamation-triangle"></i> Feedback Severity
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">Venue reports</span>
+            </div>
+            <div class="card-academic-body">
+                <div class="a-donut-wrap" style="height:150px;">
+                    <canvas id="feedbackChart"></canvas>
+                    <div class="a-donut-center">
+                        <div class="a-dc-pct" id="fb-center-pct" style="font-size:22px;">—</div>
+                        <div class="a-dc-lbl">critical</div>
+                    </div>
+                </div>
+                <div class="a-sb-list mt-3" id="feedbackBreakdown">
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#9b2c2c;"></span>
+                        <span class="a-sb-label">Critical</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="fsb-critical" style="width:0%;background:#9b2c2c;"></div></div>
+                        <span class="a-sb-num" id="fsbn-critical">—</span>
+                        <span class="a-sb-pct" id="fsbp-critical">—</span>
+                    </div>
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#b7791f;"></span>
+                        <span class="a-sb-label">Moderate</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="fsb-moderate" style="width:0%;background:#b7791f;"></div></div>
+                        <span class="a-sb-num" id="fsbn-moderate">—</span>
+                        <span class="a-sb-pct" id="fsbp-moderate">—</span>
+                    </div>
+                    <div class="a-sb-row">
+                        <span class="a-sb-dot" style="background:#276749;"></span>
+                        <span class="a-sb-label">Solved</span>
+                        <div class="a-sb-bar-wrap"><div class="a-sb-bar" id="fsb-solved" style="width:0%;background:#276749;"></div></div>
+                        <span class="a-sb-num" id="fsbn-solved">—</span>
+                        <span class="a-sb-pct" id="fsbp-solved">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Quick Actions ─────────────────────────── -->
+    <div class="mb-4">
+        <div class="mb-3">
+            <span class="section-heading" style="font-size:16px;">Quick Actions</span>
+        </div>
+
+        <div class="group-label">People &amp; Classes</div>
+        <div class="action-grid mb-4">
+            <a href="{% url 'admin_manage_users' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-users"></i></div>
+                Manage Users
+            </a>
+            <a href="{% url 'admin_add_user' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-user-plus"></i></div>
+                Add User
+            </a>
+            <a href="{% url 'admin_manage_semesters' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-layer-group"></i></div>
+                Semesters
+            </a>
+            <a href="{% url 'admin_manage_subjects' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-book-open"></i></div>
+                Subjects
+            </a>
+            <a href="{% url 'admin_manage_enrollments' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-user-check"></i></div>
+                Enrollment
+            </a>
+        </div>
+
+        <div class="group-label">Replacement Classes</div>
+        <div class="action-grid mb-2">
+            <a href="{% url 'admin_manage_requests' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-clipboard-list"></i></div>
+                Manage Requests
+            </a>
+            <a href="{% url 'admin_manage_venues' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-building"></i></div>
+                Manage Venues
+            </a>
+            <a href="{% url 'admin_view_feedback' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-comments"></i></div>
+                View Feedback
+            </a>
+            <a href="{% url 'admin_generate_replacement_report' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-file-alt"></i></div>
+                Replacement Report
+            </a>
+            <a href="{% url 'admin_generate_feedback_report' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-chart-bar"></i></div>
+                Feedback Report
+            </a>
+            <a href="{% url 'admin_venue_heatmap' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-th"></i></div>
+                Venue Heatmap
+            </a>
+            <a href="{% url 'timetable_view' %}" class="action-card">
+                <div class="ac-icon"><i class="fas fa-calendar-alt"></i></div>
+                Timetable
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Pending Requests ───────────────────────── -->
+    {% if pending_requests %}
+    <div class="mb-3">
+        <span class="section-heading" style="font-size:16px;">Pending Requests</span>
+    </div>
+    <div class="card-academic mb-4">
+        <div class="card-academic-header">
+            <i class="fas fa-hourglass-half"></i> Awaiting Review
+            <span class="badge-pending ms-2">{{ total_pending }} pending</span>
+            <a href="{% url 'admin_manage_requests' %}" class="btn-outline-academic ms-auto"
+               style="padding:4px 12px; font-size:11px;">
+                View All <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="table-academic" style="border-radius:0;">
+                <thead>
+                    <tr>
+                        <th>Lecturer</th>
+                        <th>Subject</th>
+                        <th>Original Date</th>
+                        <th>Replacement</th>
+                        <th>Venue</th>
+                        <th style="text-align:center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in pending_requests %}
+                    <tr>
+                        <td>
+                            <strong style="font-size:13px;">{{ req.lecturer.get_full_name }}</strong>
+                            <div style="font-size:11px; color:var(--text-3); margin-top:1px;">
+                                {{ req.lecturer.userprofile.employee_id }}
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight:700; color:var(--navy);">{{ req.subject.subject_code }}</span>
+                            <div style="font-size:11px; color:var(--text-3); margin-top:1px;">{{ req.subject.subject_name }}</div>
+                        </td>
+                        <td>
+                            <span style="font-size:13px;">{{ req.original_date|date:"d M Y" }}</span>
+                            <div style="font-size:11px; color:var(--text-3);">{{ req.original_time_slot }}</div>
+                        </td>
+                        <td>
+                            <span style="font-size:13px; font-weight:600; color:var(--navy);">{{ req.replacement_date|date:"d M Y" }}</span>
+                            <div style="font-size:11px; color:var(--text-3);">{{ req.replacement_time_slot }}</div>
+                        </td>
+                        <td style="font-size:13px;">{{ req.venue.venue_name }}</td>
+                        <td style="text-align:center; white-space:nowrap;">
+                            <div style="display:inline-flex; gap:6px;">
+                                <a href="{% url 'admin_approve_request' req.id %}" class="btn-approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </a>
+                                <a href="{% url 'admin_reject_request' req.id %}" class="btn-reject">
+                                    <i class="fas fa-times"></i> Reject
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#718096';
+
+const C = {
+    navy    : '#1e3a5f',
+    navyMid : '#2c5282',
+    green   : '#276749',
+    greenA  : 'rgba(39,103,73,.75)',
+    gold    : '#b7791f',
+    goldA   : 'rgba(183,121,31,.75)',
+    red     : '#9b2c2c',
+    redA    : 'rgba(155,44,44,.75)',
+    navyFill: 'rgba(30,58,95,.08)',
+    grid    : 'rgba(209,219,232,.45)',
+};
+
+const TIP = {
+    backgroundColor: '#fff',
+    borderColor: 'rgba(209,219,232,.8)',
+    borderWidth: 1,
+    titleColor: '#1a202c',
+    bodyColor: '#4a5568',
+    padding: 12,
+};
+
+/* Helper: fill breakdown bar row */
+function fillBreakdown(prefix, key, count, total) {
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    const bar = document.getElementById(prefix + '-' + key);
+    const num = document.getElementById(prefix + 'n-' + key);
+    const p   = document.getElementById(prefix + 'p-' + key);
+    if (bar) setTimeout(() => { bar.style.width = pct + '%'; }, 120);
+    if (num) num.textContent = count;
+    if (p)   p.textContent   = pct + '%';
+}
+
+fetch("{% url 'admin_chart_data' %}").then(r => r.json()).then(d => {
+
+    /* ── KPI strip ────────────────────────────────────── */
+    const s     = d.status_breakdown;
+    const total = (s.approved || 0) + (s.pending || 0) + (s.rejected || 0);
+    const rate  = total > 0 ? Math.round((s.approved / total) * 100) : 0;
+
+    document.getElementById('akpi-total').textContent    = total;
+    document.getElementById('akpi-total-sub').textContent = total === 1 ? '1 request total' : `${total} requests total`;
+    document.getElementById('akpi-rate').textContent     = rate + '%';
+    document.getElementById('akpi-rate-sub').textContent = total > 0 ? `${s.approved} of ${total} approved` : 'No data yet';
+    document.getElementById('akpi-critical').textContent = d.feedback_severity?.critical ?? '—';
+
+    /* ── Status donut center ──────────────────────────── */
+    document.getElementById('status-center-pct').textContent = rate + '%';
+    fillBreakdown('asb', 'approved', s.approved || 0, total);
+    fillBreakdown('asb', 'pending',  s.pending  || 0, total);
+    fillBreakdown('asb', 'rejected', s.rejected || 0, total);
+
+    /* ── Feedback donut center ────────────────────────── */
+    const fb     = d.feedback_severity;
+    const fbTotal = (fb.moderate || 0) + (fb.critical || 0) + (fb.solved || 0);
+    document.getElementById('fb-center-pct').textContent = fb.critical || 0;
+    fillBreakdown('fsb', 'critical', fb.critical || 0, fbTotal);
+    fillBreakdown('fsb', 'moderate', fb.moderate || 0, fbTotal);
+    fillBreakdown('fsb', 'solved',   fb.solved   || 0, fbTotal);
+
+    /* ── Monthly Trend (line) ─────────────────────────── */
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: d.monthly.labels,
+            datasets: [
+                {
+                    label: 'Total',
+                    data: d.monthly.total,
+                    borderColor: C.navy, borderWidth: 2.5,
+                    backgroundColor: C.navyFill,
+                    fill: true, tension: .4,
+                    pointRadius: 4, pointBackgroundColor: C.navy, pointBorderColor: '#fff', pointBorderWidth: 2,
+                    order: 4,
+                },
+                {
+                    label: 'Approved',
+                    data: d.monthly.approved,
+                    borderColor: C.green, borderWidth: 2,
+                    backgroundColor: 'transparent',
+                    fill: false, tension: .4,
+                    pointRadius: 3, pointBackgroundColor: C.green,
+                    order: 1,
+                },
+                {
+                    label: 'Pending',
+                    data: d.monthly.pending,
+                    borderColor: C.gold, borderWidth: 2,
+                    borderDash: [5, 4],
+                    backgroundColor: 'transparent',
+                    fill: false, tension: .4,
+                    pointRadius: 3, pointBackgroundColor: C.gold,
+                    order: 2,
+                },
+                {
+                    label: 'Rejected',
+                    data: d.monthly.rejected,
+                    borderColor: C.red, borderWidth: 2,
+                    backgroundColor: 'transparent',
+                    fill: false, tension: .4,
+                    pointRadius: 3, pointBackgroundColor: C.red,
+                    order: 3,
+                },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', align: 'start', labels: { boxWidth: 10, padding: 16, usePointStyle: true, pointStyle: 'circle' } },
+                tooltip: { ...TIP }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: C.grid }, ticks: { stepSize: 1, callback: v => Number.isInteger(v) ? v : '' }, border: { display: false } },
+                x: { grid: { display: false }, border: { color: 'rgba(209,219,232,.5)' } }
+            }
+        }
+    });
+
+    /* ── Status Donut ─────────────────────────────────── */
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Approved', 'Pending', 'Rejected'],
+            datasets: [{ data: [s.approved || 0, s.pending || 0, s.rejected || 0], backgroundColor: [C.green, C.gold, C.red], borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '74%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...TIP, callbacks: { label: ctx => `  ${ctx.label}: ${ctx.parsed} (${total > 0 ? Math.round(ctx.parsed/total*100) : 0}%)` } }
+            }
+        }
+    });
+
+    /* ── Top Venues (horizontal bar) ─────────────────── */
+    const venueColors = d.top_venues.labels.map((_, i) => {
+        const palette = [C.navy, C.navyMid, '#3a6a9a', '#4a7aaa', '#5a8aba'];
+        return palette[i] || C.navy;
+    });
+    new Chart(document.getElementById('venueChart'), {
+        type: 'bar',
+        data: {
+            labels: d.top_venues.labels,
+            datasets: [{
+                label: 'Bookings',
+                data: d.top_venues.counts,
+                backgroundColor: venueColors,
+                borderRadius: 6, borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...TIP, callbacks: { label: ctx => `  ${ctx.parsed.x} bookings` } }
+            },
+            scales: {
+                x: { beginAtZero: true, grid: { color: C.grid }, ticks: { stepSize: 1, callback: v => Number.isInteger(v) ? v : '' }, border: { display: false } },
+                y: { grid: { display: false }, ticks: { font: { weight: '600' } } }
+            }
+        }
+    });
+
+    /* ── Feedback Severity Donut ──────────────────────── */
+    new Chart(document.getElementById('feedbackChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Critical', 'Moderate', 'Solved'],
+            datasets: [{ data: [fb.critical || 0, fb.moderate || 0, fb.solved || 0], backgroundColor: [C.red, C.gold, C.green], borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '72%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...TIP, callbacks: { label: ctx => `  ${ctx.label}: ${ctx.parsed} (${fbTotal > 0 ? Math.round(ctx.parsed/fbTotal*100) : 0}%)` } }
+            }
+        }
+    });
+
+}).catch(err => {
+    console.warn('Admin chart data fetch failed:', err);
+    /* Fallback KPI from template context */
+    document.getElementById('akpi-pending').textContent = '{{ total_pending }}';
+});
+</script>
+{% endblock %}
