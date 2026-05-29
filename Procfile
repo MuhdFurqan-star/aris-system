@@ -1,1 +1,1 @@
-web: python manage.py migrate --no-input && python manage.py load_initial_data && python manage.py collectstatic --no-input && gunicorn replacement_system.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --no-sendfile
+web: python manage.py migrate --no-input && python manage.py load_initial_data && python manage.py collectstatic --no-input && gunicorn replacement_system.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --no-sendfile
