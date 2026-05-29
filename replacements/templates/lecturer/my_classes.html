@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}My Classes{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Semester section ─────────────────────────────── */
+.sem-section { margin-bottom: 28px; }
+.sem-heading {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--navy-light);
+}
+.sem-label {
+    font-size: 15px; font-weight: 800; color: var(--navy);
+}
+.sem-count {
+    font-size: 11px; font-weight: 700; padding: 2px 9px;
+    background: var(--navy-light); color: var(--navy); border-radius: 10px;
+}
+
+/* ── Subject card ─────────────────────────────────── */
+.subject-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.subject-card {
+    background: var(--card-bg); border: 1.5px solid var(--border);
+    border-left: 4px solid var(--navy); border-radius: var(--radius-lg);
+    padding: 16px 18px; transition: box-shadow .2s, transform .15s;
+}
+.subject-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+.sc-code  { font-size: 11px; font-weight: 800; color: var(--navy); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+.sc-name  { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 10px; line-height: 1.3; }
+.sc-meta  { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.sc-meta i { color: var(--navy); width: 12px; font-size: 11px; }
+
+.sc-schedules { margin-top: 10px; }
+.sc-schedule-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--navy-light); color: var(--navy);
+    font-size: 10px; font-weight: 700; padding: 3px 8px;
+    border-radius: 10px; margin: 2px 2px 2px 0;
+}
+
+.sc-actions { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.sc-btn {
+    flex: 1; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all .15s;
+}
+.sc-btn-primary { background: var(--navy); color: #fff; border: none; cursor: pointer; }
+.sc-btn-primary:hover { background: #162e4a; color: #fff; }
+.sc-btn-outline { background: transparent; color: var(--navy); border: 1.5px solid var(--navy); }
+.sc-btn-outline:hover { background: var(--navy-light); }
+
+/* ── Replacement summary cards ─────────────────────── */
+.repl-card {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--card-bg); border: 1.5px solid var(--border);
+    border-left: 4px solid #b7791f; border-radius: var(--radius-lg);
+    padding: 14px 16px; margin-bottom: 10px;
+    transition: box-shadow .15s;
+}
+.repl-card:hover { box-shadow: var(--shadow-sm); }
+.repl-date-block {
+    text-align: center; min-width: 52px; background: var(--page-bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+}
+.repl-day  { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; }
+.repl-num  { font-size: 22px; font-weight: 900; color: var(--navy); line-height: 1; }
+.repl-mon  { font-size: 10px; font-weight: 700; color: var(--text-3); }
+.repl-body { flex: 1; }
+.repl-code { font-size: 12px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+.repl-name { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 6px; }
+.repl-meta-row { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+.repl-meta-row i { color: var(--text-3); width: 12px; }
+.status-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+}
+.sb-pending  { background: #fef3c7; color: #b7791f; border: 1px solid #fbd38d; }
+.sb-approved { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+
+/* ── Empty state ──────────────────────────────────── */
+.empty-box {
+    text-align: center; padding: 40px 20px; color: var(--text-3);
+    background: var(--card-bg); border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+}
+.empty-box i { font-size: 36px; opacity: .15; display: block; margin-bottom: 12px; color: var(--navy); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-chalkboard-teacher me-2" style="color:#b7791f;"></i>My Classes</h1>
+            <p>All subjects you are assigned to teach, with class schedules and upcoming replacements.</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{% url 'lecturer_create_request' %}" class="btn-primary-academic">
+                <i class="fas fa-plus me-1"></i>New Replacement
+            </a>
+            <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stat-grid mb-4" style="grid-template-columns: repeat(3,1fr);">
+        <div class="stat-card">
+            <div class="icon-wrap blue"><i class="fas fa-book-open"></i></div>
+            <div class="number">{{ my_subjects.count }}</div>
+            <div class="label">Subjects Teaching</div>
+        </div>
+        <div class="stat-card accent-gold">
+            <div class="icon-wrap gold"><i class="fas fa-users"></i></div>
+            <div class="number">{{ grouped|length }}</div>
+            <div class="label">Class Groups</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="icon-wrap green"><i class="fas fa-calendar-check"></i></div>
+            <div class="number">{{ upcoming_replacements|length }}</div>
+            <div class="label">Upcoming Replacements</div>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 340px; gap:24px; align-items:start;">
+
+        <!-- ── Left: Subjects by semester ── -->
+        <div>
+            <div class="mb-3"><span class="section-heading" style="font-size:16px;">Assigned Subjects by Class</span></div>
+
+            {% if grouped %}
+                {% for semester, subjects in grouped %}
+                <div class="sem-section">
+                    <div class="sem-heading">
+                        <i class="fas fa-layer-group" style="color:var(--navy); font-size:14px;"></i>
+                        <span class="sem-label">Sem {{ semester.name }} — Class {{ semester.class_name }}</span>
+                        <span class="sem-count">{{ subjects|length }} subject{{ subjects|length|pluralize }}</span>
+                        <a href="{% url 'lecturer_class_timetable' semester.id %}"
+                           class="btn-outline-academic" style="margin-left:auto; padding:5px 12px; font-size:11px;">
+                            <i class="fas fa-calendar-alt me-1"></i>View Class Timetable
+                        </a>
+                    </div>
+                    <div class="subject-cards">
+                        {% for subj in subjects %}
+                        <div class="subject-card">
+                            <div class="sc-code">{{ subj.subject_code }}</div>
+                            <div class="sc-name">{{ subj.subject_name }}</div>
+                            <div class="sc-meta"><i class="fas fa-star"></i> {{ subj.credit_hours }} credit hour{{ subj.credit_hours|pluralize }}</div>
+                            <div class="sc-meta"><i class="fas fa-clock"></i> {{ subj.contact_hours_per_week }}h/week · {{ subj.total_weeks }} weeks</div>
+
+                            <!-- Weekly schedule pills -->
+                            {% if subj.schedules.all %}
+                            <div class="sc-schedules">
+                                {% for sched in subj.schedules.all %}
+                                <span class="sc-schedule-pill">
+                                    <i class="fas fa-calendar-day" style="font-size:9px;"></i>
+                                    {{ sched.get_day_of_week_display }} {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div style="font-size:11px; color:var(--text-3); margin-top:8px; font-style:italic;">No schedule assigned yet</div>
+                            {% endif %}
+
+                            <div class="sc-actions">
+                                <a href="{% url 'lecturer_class_timetable' semester.id %}" class="sc-btn sc-btn-outline">
+                                    <i class="fas fa-calendar-week"></i> Class Timetable
+                                </a>
+                                <a href="{% url 'lecturer_create_request' %}" class="sc-btn sc-btn-primary">
+                                    <i class="fas fa-exchange-alt"></i> Replace
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-box">
+                <i class="fas fa-book-open"></i>
+                <div style="font-size:14px; font-weight:700; color:var(--text-2); margin-bottom:6px;">No Subjects Assigned</div>
+                <p style="font-size:13px;">You don't have any subjects assigned yet. Contact the administrator.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ── Right: Upcoming replacements ── -->
+        <div>
+            <div class="mb-3"><span class="section-heading" style="font-size:16px;">Upcoming Replacements</span></div>
+            <div class="card-academic">
+                <div class="card-academic-header">
+                    <i class="fas fa-exchange-alt" style="color:#b7791f;"></i> Scheduled
+                </div>
+                <div class="card-academic-body" style="padding:12px 14px;">
+                    {% if upcoming_replacements %}
+                        {% for req in upcoming_replacements %}
+                        <div class="repl-card">
+                            <div class="repl-date-block">
+                                <div class="repl-day">{{ req.replacement_date|date:"D" }}</div>
+                                <div class="repl-num">{{ req.replacement_date|date:"d" }}</div>
+                                <div class="repl-mon">{{ req.replacement_date|date:"M" }}</div>
+                            </div>
+                            <div class="repl-body">
+                                <div class="repl-code">{{ req.subject.subject_code }}</div>
+                                <div class="repl-name">{{ req.subject.subject_name|truncatechars:35 }}</div>
+                                <div class="repl-meta-row"><i class="fas fa-clock"></i>{{ req.replacement_time_slot }}</div>
+                                <div class="repl-meta-row"><i class="fas fa-map-marker-alt"></i>{{ req.venue.venue_name }}</div>
+                                <div class="repl-meta-row"><i class="fas fa-tag"></i>
+                                    <span class="status-badge {% if req.status == 'approved' %}sb-approved{% else %}sb-pending{% endif %}">
+                                        {{ req.status }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <a href="{% url 'lecturer_view_requests' %}" class="btn-outline-academic"
+                           style="width:100%; justify-content:center; margin-top:8px; padding:8px;">
+                            View All Requests
+                        </a>
+                    {% else %}
+                    <div class="empty-box" style="padding:28px 16px;">
+                        <i class="fas fa-calendar-check"></i>
+                        <div style="font-size:13px; font-weight:600; color:var(--text-2); margin-bottom:4px;">No upcoming replacements</div>
+                        <p style="font-size:12px;">All clear!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

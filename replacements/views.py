@@ -716,10 +716,13 @@ def venue_search_available(request):
 # ---- Internal AI helper functions (not views, no URL needed) ----
 
 def _get_available_time_slots():
+    """Common replacement class time slots — 1-hour and 2-hour blocks."""
     return [
-        "08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00",
-        "12:00-13:00", "13:00-14:00", "14:00-15:00", "15:00-16:00",
-        "16:00-17:00", "17:00-18:00",
+        "08:00-10:00", "09:00-11:00", "10:00-12:00",
+        "11:00-13:00", "13:00-15:00", "14:00-16:00",
+        "15:00-17:00", "16:00-18:00",
+        "08:00-09:00", "09:00-10:00", "10:00-11:00",
+        "11:00-12:00", "13:00-14:00", "14:00-15:00",
     ]
 
 
@@ -770,18 +773,39 @@ def _get_best_venues(lecturer_id, top_n=3):
     return [v for v, _ in scored[:top_n]]
 
 
-def _get_booked_slots(venue_id, date):
-    """Returns list of already booked time slots for a venue on a date."""
-    return list(ClassReplacementRequest.objects.filter(
+def _is_venue_available(venue_id, date, slot):
+    """
+    Returns True if the venue is free on the given date + time slot.
+    Checks: replacement request bookings, VenueBlocks.
+    """
+    # 1. Admin block for this date
+    if VenueBlock.objects.filter(venue_id=venue_id, blocked_date=date).exists():
+        return False
+
+    req_start, req_end = _parse_time_range(slot)
+    if req_start is None:
+        return False
+
+    # 2. Overlapping replacement requests
+    existing = ClassReplacementRequest.objects.filter(
         venue_id=venue_id,
         replacement_date=date,
         status__in=['approved', 'pending']
-    ).values_list('replacement_time_slot', flat=True))
+    ).values_list('replacement_time_slot', flat=True)
+
+    for existing_slot in existing:
+        s, e = _parse_time_range(existing_slot)
+        if s and e and req_start < e and s < req_end:
+            return False
+
+    return True
 
 
 def _generate_ai_suggestions(lecturer_id, original_date, num_suggestions=3):
     """
     Core AI logic — returns list of suggestion dicts ready for JSON response.
+    Checks: preferred days from history, best venues from history,
+            VenueBlocks, overlapping replacement bookings.
     """
     day_names      = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     preferred_days = _get_lecturer_preferred_days(lecturer_id)
@@ -798,26 +822,24 @@ def _generate_ai_suggestions(lecturer_id, original_date, num_suggestions=3):
     days_checked = 0
 
     while len(suggestions) < num_suggestions and days_checked < 30:
-        if check_date.weekday() < 5:  # Mon-Fri only
+        if check_date.weekday() < 5:  # Mon–Fri only
             is_preferred = check_date.weekday() in preferred_days
 
             for venue in best_venues:
                 if len(suggestions) >= num_suggestions:
                     break
 
-                booked = _get_booked_slots(venue.id, check_date)
-
                 for slot in all_slots:
-                    if slot not in booked:
+                    if _is_venue_available(venue.id, check_date, slot):
                         if is_preferred and has_history:
                             confidence = 'High'
-                            reason = f"Matches your preferred day ({day_names[check_date.weekday()]}) and venue history"
+                            reason     = f"Matches your preferred day ({day_names[check_date.weekday()]}) and venue history"
                         elif has_history:
                             confidence = 'Medium'
-                            reason = "Preferred venue from your history, different day than usual"
+                            reason     = "Preferred venue from your history, different day than usual"
                         else:
                             confidence = 'Low'
-                            reason = "No history yet — suggestion based on venue availability"
+                            reason     = "No history yet — suggestion based on venue availability"
 
                         suggestions.append({
                             'date':           check_date.strftime('%Y-%m-%d'),
@@ -826,6 +848,7 @@ def _generate_ai_suggestions(lecturer_id, original_date, num_suggestions=3):
                             'venue_id':       venue.id,
                             'venue_name':     venue.venue_name,
                             'venue_location': venue.location,
+                            'capacity':       venue.capacity,
                             'confidence':     confidence,
                             'reason':         reason,
                         })
@@ -2430,6 +2453,246 @@ def timetable_view(request):
         'user_type':   user_type,
     }
     return render(request, 'timetable.html', context)
+
+
+# ==================== LECTURER — MY CLASSES ====================
+
+@login_required
+def lecturer_my_classes(request):
+    """
+    Shows all subjects assigned to the lecturer, grouped by semester,
+    plus upcoming replacement classes summary.
+    """
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    today = tz.localdate()
+
+    # All subjects this lecturer teaches
+    my_subjects = (
+        Subject.objects
+        .filter(lecturer=request.user)
+        .select_related('semester')
+        .prefetch_related('schedules')
+        .order_by('semester__name', 'semester__class_name', 'subject_code')
+    )
+
+    # Group by semester
+    from collections import defaultdict
+    sem_map = defaultdict(list)
+    for subj in my_subjects:
+        sem_map[subj.semester].append(subj)
+    grouped = sorted(sem_map.items(), key=lambda x: (x[0].name, x[0].class_name))
+
+    # Upcoming replacement classes (pending + approved, date >= today)
+    upcoming_replacements = (
+        ClassReplacementRequest.objects
+        .filter(lecturer=request.user, replacement_date__gte=today)
+        .exclude(status='rejected')
+        .select_related('subject', 'subject__semester', 'venue')
+        .order_by('replacement_date')[:10]
+    )
+
+    return render(request, 'lecturer/my_classes.html', {
+        'grouped':              grouped,
+        'my_subjects':          my_subjects,
+        'upcoming_replacements': upcoming_replacements,
+        'today':                today,
+    })
+
+
+@login_required
+def lecturer_class_timetable(request, sem_id):
+    """
+    Shows the full weekly timetable for a class group (all subjects, not just
+    the lecturer's own). Lecturer must teach at least one subject in that semester.
+    """
+    import re as _re
+
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    semester = get_object_or_404(Semester, pk=sem_id)
+
+    # Security: lecturer must teach at least one subject in this semester
+    teaches_here = Subject.objects.filter(lecturer=request.user, semester=semester).exists()
+    if not teaches_here:
+        messages.error(request, 'You are not assigned to any subject in this class group.')
+        return redirect('lecturer_my_classes')
+
+    HOUR_SLOTS = list(range(8, 18))
+    SLOT_KEYS  = [f"{h:02d}:00" for h in HOUR_SLOTS]
+
+    week_offset = int(request.GET.get('week', 0))
+    today       = tz.localdate()
+    monday      = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+    week_days   = [monday + timedelta(days=i) for i in range(5)]
+
+    # All class schedules for this semester
+    regular_qs = (
+        ClassSchedule.objects
+        .filter(subject__semester=semester)
+        .select_related('subject', 'subject__lecturer', 'venue')
+        .order_by('day_of_week', 'start_time')
+    )
+
+    # Approved replacements for this semester in the selected week
+    repl_qs = (
+        ClassReplacementRequest.objects
+        .filter(
+            status='approved',
+            replacement_date__in=week_days,
+            subject__semester=semester,
+        )
+        .select_related('subject', 'venue', 'lecturer')
+    )
+
+    # Build grid (same logic as timetable_view)
+    def _parse_slot(slot_str):
+        m = _re.match(r'(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$', slot_str.strip())
+        if m:
+            return int(m.group(1)), max(1, int(m.group(3)) - int(m.group(1)))
+        m = _re.match(r'(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)',
+                       slot_str.strip(), _re.I)
+        if m:
+            sh = int(m.group(1))
+            if m.group(3).upper() == 'PM' and sh != 12: sh += 12
+            eh = int(m.group(4))
+            if m.group(6).upper() == 'PM' and eh != 12: eh += 12
+            return sh, max(1, eh - sh)
+        mm = _re.match(r'(\d{1,2}):', slot_str.strip())
+        return (int(mm.group(1)), 2) if mm else (8, 2)
+
+    grid = {k: {d: [] for d in week_days} for k in SLOT_KEYS}
+    skip = set()
+
+    def _add(sk, day, item, dur):
+        if sk not in grid or day not in grid[sk]:
+            return
+        grid[sk][day].append({'duration': dur, **item})
+        sh = int(sk[:2])
+        for dh in range(1, dur):
+            nk = f"{sh + dh:02d}:00"
+            if nk in grid:
+                skip.add((nk, day.strftime('%Y-%m-%d')))
+
+    for sched in regular_qs:
+        if sched.day_of_week > 4:
+            continue
+        day = week_days[sched.day_of_week]
+        sk  = f"{sched.start_time.hour:02d}:00"
+        dur = max(1, sched.end_time.hour - sched.start_time.hour)
+        is_mine = sched.subject.lecturer_id == request.user.id
+        _add(sk, day, {
+            'type':     'regular',
+            'code':     sched.subject.subject_code,
+            'name':     sched.subject.subject_name,
+            'lecturer': sched.subject.lecturer.get_full_name() if sched.subject.lecturer else '—',
+            'is_mine':  is_mine,
+            'sem':      str(sched.subject.semester),
+            'start':    sched.start_time.strftime('%H:%M'),
+            'end':      sched.end_time.strftime('%H:%M'),
+        }, dur)
+
+    for r in repl_qs:
+        sh, dur = _parse_slot(r.replacement_time_slot)
+        sk = f"{sh:02d}:00"
+        is_mine = r.lecturer_id == request.user.id
+        _add(sk, r.replacement_date, {
+            'type':          'replacement',
+            'code':          r.subject.subject_code,
+            'name':          r.subject.subject_name,
+            'lecturer':      r.lecturer.get_full_name(),
+            'is_mine':       is_mine,
+            'venue':         r.venue.venue_name,
+            'original_date': r.original_date.strftime('%d %b %Y'),
+            'original_slot': r.original_time_slot,
+            'start':         f"{sh:02d}:00",
+            'end':           f"{sh + dur:02d}:00",
+            'req_id':        r.id,
+        }, dur)
+
+    rows = []
+    for sk in SLOT_KEYS:
+        row = [{'type': 'time', 'label': sk}]
+        for day in week_days:
+            day_str = day.strftime('%Y-%m-%d')
+            if (sk, day_str) in skip:
+                row.append({'type': 'skip'})
+            else:
+                items   = grid[sk][day]
+                rowspan = max((it['duration'] for it in items), default=1)
+                row.append({
+                    'type':     'cell',
+                    'items':    items,
+                    'rowspan':  rowspan,
+                    'is_today': day == today,
+                    'is_empty': len(items) == 0,
+                })
+        rows.append(row)
+
+    # All semesters the lecturer teaches (for the sidebar switcher)
+    my_semesters = (
+        Semester.objects
+        .filter(subject__lecturer=request.user)
+        .distinct()
+        .order_by('name', 'class_name')
+    )
+
+    return render(request, 'lecturer/class_timetable.html', {
+        'semester':    semester,
+        'rows':        rows,
+        'week_days':   week_days,
+        'week_offset': week_offset,
+        'today':       today,
+        'monday':      monday,
+        'my_semesters': my_semesters,
+    })
+
+
+# ==================== ADMIN — SEMESTER LECTURER ASSIGNMENT ====================
+
+@login_required
+def admin_semester_assign(request, sem_id):
+    """
+    Roster page: admin can assign a lecturer to each subject in a semester.
+    """
+    if not _admin_guard(request):
+        return redirect('dashboard')
+
+    semester  = get_object_or_404(Semester, pk=sem_id)
+    subjects  = Subject.objects.filter(semester=semester).select_related('lecturer').order_by('subject_code')
+    lecturers = User.objects.filter(userprofile__user_type='lecturer').select_related('userprofile').order_by('last_name', 'first_name')
+
+    if request.method == 'POST':
+        updated = 0
+        for subj in subjects:
+            key   = f'lecturer_{subj.id}'
+            value = request.POST.get(key, '').strip()
+            new_lecturer = None
+            if value:
+                try:
+                    new_lecturer = User.objects.get(pk=int(value))
+                except (User.DoesNotExist, ValueError):
+                    pass
+            if subj.lecturer != new_lecturer:
+                subj.lecturer = new_lecturer
+                subj.save(update_fields=['lecturer'])
+                updated += 1
+
+        if updated:
+            messages.success(request, f'{updated} subject assignment(s) updated.')
+        else:
+            messages.info(request, 'No changes were made.')
+        return redirect('admin_semester_assign', sem_id=sem_id)
+
+    return render(request, 'admin/semester_assign.html', {
+        'semester':  semester,
+        'subjects':  subjects,
+        'lecturers': lecturers,
+    })
 
 
 # ==================== AI CHATBOT ====================

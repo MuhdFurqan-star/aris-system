@@ -122,6 +122,9 @@
                         <a href="{% url 'admin_manage_subjects' %}?semester={{ sem.id }}" class="btn-outline-academic" style="padding:5px 10px; font-size:12px;">
                             <i class="fas fa-book me-1"></i>Subjects
                         </a>
+                        <a href="{% url 'admin_semester_assign' sem.id %}" class="btn-primary-academic" style="padding:5px 10px; font-size:12px;">
+                            <i class="fas fa-user-tag me-1"></i>Assign Lecturers
+                        </a>
                         <a href="{% url 'admin_manage_enrollments' %}?semester={{ sem.id }}" class="btn-outline-academic" style="padding:5px 10px; font-size:12px;">
                             <i class="fas fa-users me-1"></i>Students
                         </a>

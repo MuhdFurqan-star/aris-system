@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Weekly Timetable{% endblock %}
+{% block title %}Class Timetable — Sem {{ semester.name }} Class {{ semester.class_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -16,6 +16,23 @@
     color:#fff; font-weight:700; font-size:14px;
     min-width:190px; text-align:center;
 }
+
+/* ── Class switcher sidebar ─────────────────────────── */
+.class-switcher {
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    padding:10px 16px; background:var(--card-bg);
+    border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:16px;
+}
+.switcher-label { font-size:12px; font-weight:700; color:var(--text-2); white-space:nowrap; }
+.switcher-pill {
+    display:inline-block; padding:4px 12px; border-radius:20px;
+    font-size:12px; font-weight:600; text-decoration:none;
+    border:1.5px solid var(--border); color:var(--text-2);
+    background:var(--page-bg); transition:all .18s; white-space:nowrap;
+}
+.switcher-pill:hover  { border-color:var(--navy); color:var(--navy); }
+.switcher-pill.active { background:var(--navy); color:#fff; border-color:var(--navy); }
 
 /* ── Timetable table ─────────────────────────────────── */
 .timetable-wrap { overflow-x:auto; }
@@ -44,18 +61,6 @@
 .timetable td.tt-cell.today-col  { background:#fef3c7; border-color:#fbd38d; }
 .timetable td.tt-cell.empty-cell { background:var(--card-bg); }
 .timetable td.tt-cell.today-col.empty-cell { background:#fffbeb; }
-.timetable td.tt-cell.clash-cell { border:2px solid #e53e3e !important; background:#fff5f5 !important; }
-.timetable td.tt-cell.today-col.clash-cell { background:#fff0f0 !important; }
-
-/* ── Clash warning banner ────────────────────────────── */
-.clash-banner {
-    background:#e53e3e; color:#fff;
-    font-size:9px; font-weight:800; letter-spacing:.5px;
-    text-transform:uppercase; text-align:center;
-    padding:2px 6px; border-radius:4px;
-    margin-bottom:4px; display:flex; align-items:center;
-    justify-content:center; gap:4px;
-}
 
 /* ── Class cards ─────────────────────────────────────── */
 .class-card {
@@ -63,27 +68,39 @@
     position:relative; overflow:hidden;
 }
 
-/* Regular class — navy theme */
-.class-card.regular {
+/* My own subject — navy */
+.class-card.mine {
     background:linear-gradient(135deg, var(--navy) 0%, #2d5282 100%);
-    color:#fff;
-    border-left:none;
-    box-shadow:0 2px 6px rgba(30,58,95,.25);
+    color:#fff; box-shadow:0 2px 6px rgba(30,58,95,.25);
 }
-.class-card.regular .cc-code  { font-weight:800; font-size:12px; color:#fff; }
-.class-card.regular .cc-name  { font-size:10px; color:rgba(255,255,255,.8); margin-top:1px; line-height:1.3; }
-.class-card.regular .cc-meta  { font-size:10px; color:rgba(255,255,255,.7); margin-top:4px; }
-.class-card.regular .cc-time  {
+.class-card.mine .cc-code  { font-weight:800; font-size:12px; color:#fff; }
+.class-card.mine .cc-name  { font-size:10px; color:rgba(255,255,255,.8); margin-top:1px; line-height:1.3; }
+.class-card.mine .cc-meta  { font-size:10px; color:rgba(255,255,255,.7); margin-top:4px; }
+.class-card.mine .cc-time  {
     font-size:10px; font-weight:700; color:rgba(255,255,255,.9);
     background:rgba(255,255,255,.15); border-radius:4px;
     padding:1px 6px; display:inline-block; margin-top:3px;
 }
 
-/* Replacement class — gold/amber theme */
+/* Other lecturer's subject — grey/teal */
+.class-card.other {
+    background:linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    color:#fff; box-shadow:0 2px 4px rgba(0,0,0,.15);
+    opacity:.8;
+}
+.class-card.other .cc-code  { font-weight:800; font-size:12px; color:#e2e8f0; }
+.class-card.other .cc-name  { font-size:10px; color:rgba(226,232,240,.75); margin-top:1px; line-height:1.3; }
+.class-card.other .cc-meta  { font-size:10px; color:rgba(226,232,240,.6); margin-top:4px; }
+.class-card.other .cc-time  {
+    font-size:10px; font-weight:700; color:#e2e8f0;
+    background:rgba(255,255,255,.15); border-radius:4px;
+    padding:1px 6px; display:inline-block; margin-top:3px;
+}
+
+/* Replacement — amber */
 .class-card.replacement {
     background:linear-gradient(135deg, #744210 0%, #92400e 100%);
-    color:#fff;
-    box-shadow:0 2px 6px rgba(116,66,16,.30);
+    color:#fff; box-shadow:0 2px 6px rgba(116,66,16,.30);
     border:1px solid #b7791f;
 }
 .class-card.replacement .cc-code  { font-weight:800; font-size:12px; color:#fef3c7; }
@@ -98,8 +115,13 @@
     position:absolute; top:5px; right:5px;
     font-size:8px; font-weight:800; letter-spacing:.5px;
     background:rgba(255,255,255,.25); color:#fff;
-    padding:1px 5px; border-radius:3px;
-    text-transform:uppercase;
+    padding:1px 5px; border-radius:3px; text-transform:uppercase;
+}
+.mine-badge {
+    position:absolute; top:5px; right:5px;
+    font-size:8px; font-weight:800; letter-spacing:.5px;
+    background:rgba(255,255,255,.3); color:#fff;
+    padding:1px 5px; border-radius:3px; text-transform:uppercase;
 }
 .cc-orig {
     margin-top:4px; font-size:10px;
@@ -108,23 +130,12 @@
     padding-top:3px;
 }
 
-/* Cal link */
-.cal-link {
-    display:inline-flex; align-items:center; gap:3px;
-    font-size:9px; font-weight:700; color:rgba(255,255,255,.85);
-    text-decoration:none; margin-top:4px;
-    background:rgba(255,255,255,.15); border-radius:3px; padding:2px 5px;
-    transition:background .15s;
-}
-.cal-link:hover { background:rgba(255,255,255,.30); color:#fff; }
-
 /* ── Legend ──────────────────────────────────────────── */
 .legend { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; }
 .legend-item { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); }
-.legend-dot {
-    width:14px; height:14px; border-radius:4px; flex-shrink:0;
-}
-.ld-regular     { background:var(--navy); }
+.legend-dot { width:14px; height:14px; border-radius:4px; flex-shrink:0; }
+.ld-mine        { background:var(--navy); }
+.ld-other       { background:#4a5568; opacity:.8; }
 .ld-replacement { background:#92400e; }
 .ld-today       { background:#fbd38d; border:1px solid #f6ad55; }
 </style>
@@ -137,15 +148,13 @@
     <div class="page-banner mb-4"
          style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
-            <h1><i class="fas fa-calendar-week me-2" style="color:#b7791f;"></i>Weekly Timetable</h1>
-            <p>Regular classes &amp; replacement classes — week of {{ monday|date:"d M Y" }}</p>
+            <h1><i class="fas fa-calendar-week me-2" style="color:#b7791f;"></i>Class Timetable</h1>
+            <p>
+                <strong style="color:rgba(255,255,255,.9);">Sem {{ semester.name }} — Class {{ semester.class_name }}</strong>
+                &nbsp;·&nbsp; Week of {{ monday|date:"d M Y" }}
+            </p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            {% if user_type == 'student' %}
-            <a href="{% url 'export_ical_bookmarks' %}" class="btn-outline-academic">
-                <i class="fas fa-calendar-plus me-1"></i>Export (.ics)
-            </a>
-            {% endif %}
             <div class="week-nav">
                 <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
                 <span class="week-label">{{ monday|date:"d M" }} – {{ week_days.4|date:"d M Y" }}</span>
@@ -154,12 +163,26 @@
             {% if week_offset != 0 %}
             <a href="?week=0" class="btn-outline-academic" style="padding:7px 14px;">Today</a>
             {% endif %}
-            <a href="{% url 'dashboard' %}" class="btn-outline-academic">
-                <i class="fas fa-arrow-left me-1"></i>Dashboard
+            <a href="{% url 'lecturer_my_classes' %}" class="btn-outline-academic">
+                <i class="fas fa-arrow-left me-1"></i>My Classes
             </a>
         </div>
     </div>
 
+    <!-- Class group switcher -->
+    {% if my_semesters %}
+    <div class="class-switcher">
+        <span class="switcher-label"><i class="fas fa-layer-group me-1"></i>Switch Class:</span>
+        {% for sem in my_semesters %}
+        <a href="{% url 'lecturer_class_timetable' sem.id %}?week={{ week_offset }}"
+           class="switcher-pill {% if sem.id == semester.id %}active{% endif %}">
+            Sem {{ sem.name }} {{ sem.class_name }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Timetable -->
     <div class="card-academic">
         <div class="timetable-wrap" style="padding:8px;">
             <table class="timetable">
@@ -186,29 +209,22 @@
                         <td class="slot-label">{{ cell.label }}</td>
 
                         {% elif cell.type == 'cell' %}
-                        <td class="tt-cell {% if cell.is_today %}today-col{% endif %} {% if cell.is_empty %}empty-cell{% endif %} {% if cell.items|length > 1 %}clash-cell{% endif %}"
+                        <td class="tt-cell {% if cell.is_today %}today-col{% endif %} {% if cell.is_empty %}empty-cell{% endif %}"
                             {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}>
-
-                            {% if cell.items|length > 1 %}
-                            <div class="clash-banner">
-                                <i class="fas fa-exclamation-triangle" style="font-size:8px;"></i>
-                                {{ cell.items|length }} classes clash
-                            </div>
-                            {% endif %}
 
                             {% for item in cell.items %}
 
                             {% if item.type == 'regular' %}
-                            <!-- ── Regular class card ── -->
-                            <div class="class-card regular"
+                            <div class="class-card {% if item.is_mine %}mine{% else %}other{% endif %}"
                                  title="{{ item.name }} | {{ item.sem }}">
+                                {% if item.is_mine %}<span class="mine-badge">Mine</span>{% endif %}
                                 <div class="cc-code">
                                     <i class="fas fa-book-open" style="font-size:9px; margin-right:3px; opacity:.8;"></i>
                                     {{ item.code }}
                                 </div>
                                 <div class="cc-name">{{ item.name|truncatechars:40 }}</div>
                                 <div class="cc-meta">
-                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:25 }}
+                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:22 }}
                                 </div>
                                 <div class="cc-time">
                                     <i class="fas fa-clock" style="font-size:8px;"></i>
@@ -217,17 +233,16 @@
                             </div>
 
                             {% elif item.type == 'replacement' %}
-                            <!-- ── Replacement class card ── -->
                             <div class="class-card replacement"
                                  title="{{ item.name }} | Replacement for {{ item.original_date }}">
-                                <span class="cc-badge">Replace</span>
+                                <span class="cc-badge">{% if item.is_mine %}My Repl{% else %}Replace{% endif %}</span>
                                 <div class="cc-code">
                                     <i class="fas fa-exchange-alt" style="font-size:9px; margin-right:3px; opacity:.8;"></i>
                                     {{ item.code }}
                                 </div>
                                 <div class="cc-name">{{ item.name|truncatechars:38 }}</div>
                                 <div class="cc-meta">
-                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:25 }}
+                                    <i class="fas fa-user" style="font-size:9px;"></i> {{ item.lecturer|truncatechars:22 }}
                                 </div>
                                 <div class="cc-meta">
                                     <i class="fas fa-map-marker-alt" style="font-size:9px;"></i> {{ item.venue }}
@@ -240,17 +255,13 @@
                                     <i class="fas fa-undo" style="font-size:8px;"></i>
                                     Orig: {{ item.original_date }} · {{ item.original_slot }}
                                 </div>
-                                <a href="{% url 'export_ical_single' item.req_id %}" class="cal-link">
-                                    <i class="fas fa-calendar-plus"></i> +Cal
-                                </a>
                             </div>
                             {% endif %}
 
                             {% endfor %}
                         </td>
-
                         {% endif %}
-                        {# type == 'skip' → render nothing (covered by rowspan above) #}
+                        {# type == 'skip' → covered by rowspan #}
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -259,23 +270,12 @@
         </div>
     </div>
 
+    <!-- Legend -->
     <div class="legend">
-        <div class="legend-item">
-            <div class="legend-dot ld-regular"></div>
-            Regular class
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot ld-replacement"></div>
-            Replacement class
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot ld-today"></div>
-            Today
-        </div>
-        <div class="legend-item">
-            <i class="fas fa-calendar-plus" style="color:var(--text-3); font-size:12px;"></i>
-            Click +Cal to add to Google / Apple Calendar
-        </div>
+        <div class="legend-item"><div class="legend-dot ld-mine"></div>My subject</div>
+        <div class="legend-item"><div class="legend-dot ld-other"></div>Other lecturer</div>
+        <div class="legend-item"><div class="legend-dot ld-replacement"></div>Replacement class</div>
+        <div class="legend-item"><div class="legend-dot ld-today"></div>Today</div>
     </div>
 
 </div>

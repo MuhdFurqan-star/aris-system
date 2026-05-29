@@ -20,6 +20,8 @@ urlpatterns = [
     path('lecturer/view-requests/', views.lecturer_view_requests, name='lecturer_view_requests'),
     path('lecturer/past-replacements/', views.lecturer_past_replacements, name='lecturer_past_replacements'),
     path('lecturer/venue-feedback/', views.lecturer_venue_feedback, name='lecturer_venue_feedback'),
+    path('lecturer/my-classes/', views.lecturer_my_classes, name='lecturer_my_classes'),
+    path('lecturer/class-timetable/<int:sem_id>/', views.lecturer_class_timetable, name='lecturer_class_timetable'),
     
     # Admin URLs
     path('admin-portal/dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -97,6 +99,7 @@ urlpatterns = [
     path('admin-portal/semesters/add/', views.admin_add_semester, name='admin_add_semester'),
     path('admin-portal/semesters/<int:sem_id>/edit/', views.admin_edit_semester, name='admin_edit_semester'),
     path('admin-portal/semesters/<int:sem_id>/delete/', views.admin_delete_semester, name='admin_delete_semester'),
+    path('admin-portal/semesters/<int:sem_id>/assign/', views.admin_semester_assign, name='admin_semester_assign'),
 
     # Admin — Subject Management
     path('admin-portal/subjects/', views.admin_manage_subjects, name='admin_manage_subjects'),

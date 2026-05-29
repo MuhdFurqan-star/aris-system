@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% block title %}Assign Lecturers — Sem {{ semester.name }} Class {{ semester.class_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.roster-table { width:100%; border-collapse:collapse; }
+.roster-table thead th {
+    background:var(--navy); color:#fff; padding:11px 14px;
+    font-size:12px; font-weight:700; text-align:left;
+}
+.roster-table tbody tr { border-bottom:1px solid var(--border); transition:background .12s; }
+.roster-table tbody tr:hover { background:var(--navy-light); }
+.roster-table td { padding:12px 14px; font-size:13px; vertical-align:middle; }
+
+.sub-code { font-size:11px; font-weight:800; background:var(--navy-light); color:var(--navy); padding:2px 8px; border-radius:4px; letter-spacing:.4px; }
+.sub-name { font-weight:600; color:var(--text-1); }
+.sub-hours { font-size:11px; color:var(--text-3); }
+
+.lecturer-select {
+    width:100%; padding:7px 10px; border:1.5px solid var(--border);
+    border-radius:var(--radius); background:var(--card-bg); color:var(--text-1);
+    font-size:13px; font-family:inherit; cursor:pointer;
+    transition:border-color .15s, box-shadow .15s;
+}
+.lecturer-select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(30,58,95,.08); }
+.lecturer-select.changed { border-color:#276749; background:#f0fff4; }
+
+.unassigned-badge {
+    display:inline-block; font-size:11px; font-weight:700;
+    background:#fff5f5; color:#9b2c2c; border:1px solid #fed7d7;
+    padding:2px 8px; border-radius:10px;
+}
+.assigned-badge {
+    display:inline-block; font-size:11px; font-weight:700;
+    background:#f0fff4; color:#276749; border:1px solid #c6f6d5;
+    padding:2px 8px; border-radius:10px;
+}
+
+.save-bar {
+    position:sticky; bottom:0; background:var(--card-bg);
+    border-top:2px solid var(--border); padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap; z-index:10;
+    box-shadow:0 -4px 16px rgba(0,0,0,.06);
+}
+.change-counter {
+    font-size:13px; font-weight:600; color:var(--text-2);
+}
+.change-counter span { font-weight:800; color:var(--navy); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+    <!-- Banner -->
+    <div class="page-banner mb-4"
+         style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-user-tag me-2" style="color:#b7791f;"></i>Assign Lecturers</h1>
+            <p>
+                Manage lecturer assignments for
+                <strong style="color:rgba(255,255,255,.9);">{{ semester }}</strong>
+                — {{ subjects|length }} subject{{ subjects|length|pluralize }}
+            </p>
+        </div>
+        <a href="{% url 'admin_manage_semesters' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i>Back to Semesters
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-3"
+             style="border-radius:var(--radius); font-size:13px; padding:10px 16px;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Summary stats -->
+    <div class="stat-grid mb-4" style="grid-template-columns: repeat(3,1fr);">
+        <div class="stat-card">
+            <div class="icon-wrap blue"><i class="fas fa-book"></i></div>
+            <div class="number">{{ subjects|length }}</div>
+            <div class="label">Total Subjects</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="icon-wrap green"><i class="fas fa-check-circle"></i></div>
+            <div class="number">{% with assigned=subjects|dictsort:"lecturer_id" %}{{ subjects|length }}{% endwith %}</div>
+            <div class="label" id="assigned-count-label">Assigned</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-wrap gold"><i class="fas fa-users"></i></div>
+            <div class="number">{{ lecturers|length }}</div>
+            <div class="label">Available Lecturers</div>
+        </div>
+    </div>
+
+    <form method="POST" id="assignForm">
+        {% csrf_token %}
+
+        <div class="card-academic" style="padding:0; overflow:hidden;">
+            <div class="card-academic-header">
+                <i class="fas fa-table"></i> Subject Roster — {{ semester }}
+                <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-3);">
+                    Select a lecturer for each subject, then click Save All Changes.
+                </span>
+            </div>
+
+            {% if subjects %}
+            <div style="overflow-x:auto;">
+                <table class="roster-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>Subject Code</th>
+                            <th>Subject Name</th>
+                            <th>Credit / Hours</th>
+                            <th>Current Status</th>
+                            <th style="min-width:240px;">Assign Lecturer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subj in subjects %}
+                        <tr id="row-{{ subj.id }}">
+                            <td style="color:var(--text-3); font-size:12px;">{{ forloop.counter }}</td>
+                            <td><span class="sub-code">{{ subj.subject_code }}</span></td>
+                            <td>
+                                <div class="sub-name">{{ subj.subject_name }}</div>
+                                {% if subj.description %}
+                                <div class="sub-hours">{{ subj.description|truncatechars:60 }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="sub-hours">{{ subj.credit_hours }} cr</div>
+                                <div class="sub-hours">{{ subj.contact_hours_per_week }}h/wk × {{ subj.total_weeks }}wk</div>
+                            </td>
+                            <td>
+                                {% if subj.lecturer %}
+                                <span class="assigned-badge" id="status-{{ subj.id }}">
+                                    <i class="fas fa-check me-1" style="font-size:9px;"></i>{{ subj.lecturer.get_full_name }}
+                                </span>
+                                {% else %}
+                                <span class="unassigned-badge" id="status-{{ subj.id }}">
+                                    <i class="fas fa-times me-1" style="font-size:9px;"></i>Unassigned
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select name="lecturer_{{ subj.id }}"
+                                        class="lecturer-select"
+                                        data-original="{{ subj.lecturer_id|default:'' }}"
+                                        data-subj="{{ subj.id }}"
+                                        onchange="onSelectChange(this)">
+                                    <option value="">— Unassigned —</option>
+                                    {% for lec in lecturers %}
+                                    <option value="{{ lec.id }}"
+                                        {% if subj.lecturer_id == lec.id %}selected{% endif %}>
+                                        {{ lec.get_full_name }}
+                                        {% if lec.userprofile.employee_id %}({{ lec.userprofile.employee_id }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align:center; padding:52px 20px; color:var(--text-3);">
+                <i class="fas fa-inbox" style="font-size:36px; opacity:.15; display:block; margin-bottom:14px;"></i>
+                <div style="font-size:14px; font-weight:600; color:var(--text-2); margin-bottom:6px;">No subjects in this semester</div>
+                <p style="font-size:13px;">Add subjects to this semester first before assigning lecturers.</p>
+                <a href="{% url 'admin_add_subject' %}" class="btn-primary-academic mt-3">
+                    <i class="fas fa-plus me-1"></i>Add Subject
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Sticky save bar -->
+            {% if subjects %}
+            <div class="save-bar">
+                <div class="change-counter">
+                    <span id="change-count">0</span> unsaved change(s)
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <a href="{% url 'admin_manage_semesters' %}" class="btn-outline-academic" style="padding:9px 18px;">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn-primary-academic" style="padding:9px 22px;" id="saveBtn">
+                        <i class="fas fa-save me-1"></i>Save All Changes
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+
+</div>
+
+<script>
+let changeCount = 0;
+
+function onSelectChange(sel) {
+    const original = sel.dataset.original;
+    const current  = sel.value;
+    const changed  = current !== original;
+
+    sel.classList.toggle('changed', changed);
+
+    // Recount total changes
+    changeCount = document.querySelectorAll('.lecturer-select.changed').length;
+    document.getElementById('change-count').textContent = changeCount;
+
+    // Visual feedback on save button
+    const saveBtn = document.getElementById('saveBtn');
+    if (changeCount > 0) {
+        saveBtn.style.background = '#276749';
+    } else {
+        saveBtn.style.background = '';
+    }
+}
+
+// Warn on page leave if unsaved changes
+window.addEventListener('beforeunload', function(e) {
+    if (changeCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// On form submit, no need to warn
+document.getElementById('assignForm')?.addEventListener('submit', function() {
+    changeCount = 0;
+});
+</script>
+{% endblock %}
