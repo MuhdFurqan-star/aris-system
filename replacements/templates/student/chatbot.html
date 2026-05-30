@@ -38,15 +38,18 @@
 
 /* ── Quick chips ──────────────────────────────────────────────────────────── */
 .quick-chips {
-    display: flex; gap: 7px; flex-wrap: wrap;
-    margin-bottom: 9px; flex-shrink: 0;
+    display: flex; gap: 7px; flex-wrap: nowrap;
+    overflow-x: auto; margin-bottom: 9px; flex-shrink: 0;
+    padding-bottom: 2px; scrollbar-width: none;
 }
+.quick-chips::-webkit-scrollbar { display: none; }
 .chip {
     background: var(--card-bg); color: var(--text-2);
     border: 1px solid var(--border); padding: 5px 12px;
     border-radius: 20px; font-size: 12px; font-weight: 600;
     cursor: pointer; transition: all .18s; user-select: none;
     white-space: nowrap; flex-shrink: 0;
+    display: inline-flex; align-items: center;
 }
 .chip:hover { border-color: var(--navy); color: var(--navy); background: #ebf0f8; }
 .chip:active { transform: scale(.97); }
