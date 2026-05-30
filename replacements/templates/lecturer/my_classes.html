@@ -22,6 +22,15 @@
     transition: background .15s;
 }
 .week-nav a:hover { background: rgba(255,255,255,.28); color: #fff; }
+.mc-back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.15); color: #fff;
+    border: 1px solid rgba(255,255,255,.3);
+    padding: 7px 14px; border-radius: var(--radius);
+    font-weight: 700; font-size: 13px; text-decoration: none;
+    transition: background .15s;
+}
+.mc-back-btn:hover { background: rgba(255,255,255,.28); color: #fff; }
 .week-label { color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; }
 
 /* ── Stats strip ────────────────────────────────────────── */
@@ -193,11 +202,11 @@
         <div>
             <h1><i class="fas fa-chalkboard-teacher me-2"></i>My Classes</h1>
             <p>Your teaching schedule — click any class to manage QR attendance or request a replacement.</p>
-            <a href="{% url 'lecturer_dashboard' %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; font-weight:600; color:rgba(255,255,255,.75); text-decoration:none; transition:color .15s;">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </a>
         </div>
         <div class="week-nav">
+            <a href="{% url 'lecturer_dashboard' %}" class="mc-back-btn">
+                <i class="fas fa-arrow-left me-1"></i> Dashboard
+            </a>
             <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
             <span class="week-label">
                 {{ monday|date:"d M" }} – {{ week_days.4|date:"d M Y" }}
