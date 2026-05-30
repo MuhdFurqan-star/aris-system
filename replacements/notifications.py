@@ -1,4 +1,5 @@
 # replacements/notifications.py
+import threading
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -16,16 +17,20 @@ def _create(recipient, notif_type, title, message, related_request=None):
 
 
 def _send_email(to_email, subject, body):
-    try:
-        send_mail(
-            subject=subject,
-            message=body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[to_email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    def _do_send():
+        try:
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[to_email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_do_send, daemon=True)
+    t.start()
 
 
 # ── Public helpers called from views ──────────────────────────────────────────
