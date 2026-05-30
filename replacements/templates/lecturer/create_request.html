@@ -631,7 +631,10 @@ document.addEventListener('DOMContentLoaded', function () {
         venueSelMeta.textContent = meta;
         const iconEl = document.getElementById('venue-sel-icon');
         if (iconEl) iconEl.className = `fas ${icon}`;
-        venueSelected.style.display  = 'flex';
+        // Make sure the controls container is visible before showing the card
+        if (venueControls) venueControls.style.display = 'block';
+        if (venuePrompt)   venuePrompt.style.display   = 'none';
+        venueSelected.style.display  = 'block';
         venueResults.style.display   = 'none';
         venueNoResults.style.display = 'none';
         updateSteps();
@@ -753,26 +756,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
         aiCards.querySelectorAll('.use-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                // Capture dataset values BEFORE any async operations
+                const selDate     = this.dataset.date;
+                const selTime     = this.dataset.time;
+                const selVenueId  = this.dataset.venue;
+                const selVenueName = this.dataset.venueName;
+                const selVenueCap = this.dataset.venueCapacity || '—';
+                const selVenueLoc = this.dataset.venueLoc || '';
+
                 // Fill date
-                if (replaceDateEl) {
-                    replaceDateEl.value = this.dataset.date;
+                if (replaceDateEl && selDate) {
+                    replaceDateEl.value = selDate;
                     replaceDateEl.dispatchEvent(new Event('change'));
                 }
                 // Fill time slot
-                if (timeSlotEl) {
+                if (timeSlotEl && selTime) {
                     for (const opt of timeSlotEl.options) {
-                        if (opt.value === this.dataset.time) { opt.selected = true; break; }
+                        if (opt.value === selTime) { opt.selected = true; break; }
                     }
                     timeSlotEl.dispatchEvent(new Event('change'));
                 }
-                // Auto-select the suggested venue via the new system
-                if (this.dataset.venue && this.dataset.venueName) {
-                    selectVenue(
-                        this.dataset.venue,
-                        this.dataset.venueName,
-                        `Cap: ${this.dataset.venueCapacity || '—'} · ${this.dataset.venueLoc || ''}`,
-                        'fa-building'
-                    );
+                // Select venue using setTimeout so it runs AFTER all change-event handlers settle
+                if (selVenueId && selVenueName) {
+                    setTimeout(() => {
+                        selectVenue(
+                            selVenueId,
+                            selVenueName,
+                            `Cap: ${selVenueCap} · ${selVenueLoc}`,
+                            'fa-building'
+                        );
+                    }, 20);
                 }
                 aiCards.querySelectorAll('.ai-card').forEach(c => c.classList.remove('selected'));
                 this.closest('.ai-card').classList.add('selected');
