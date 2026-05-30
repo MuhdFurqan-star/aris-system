@@ -67,6 +67,13 @@
 .msg.user { flex-direction: row-reverse; }
 .msg:last-child { margin-bottom: 0; }
 
+/* wrapper div inside each message row */
+.msg > div:not(.msg-avatar) {
+    display: flex; flex-direction: column; max-width: 74%;
+}
+.msg.user > div:not(.msg-avatar) { align-items: flex-end; }
+.msg.bot  > div:not(.msg-avatar) { align-items: flex-start; }
+
 .msg-avatar {
     width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
     overflow: hidden; background: var(--border);
@@ -76,13 +83,14 @@
 .msg-avatar.bot-av { background: var(--navy); color: white; }
 
 .msg-bubble {
-    max-width: 74%; min-width: 0; padding: 10px 14px; border-radius: 16px;
+    padding: 10px 14px; border-radius: 16px;
     font-size: 13px; line-height: 1.65; word-break: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: break-word; width: fit-content;
 }
 .msg.bot  .msg-bubble {
     background: var(--page-bg); color: var(--text-1);
     border: 1px solid var(--border); border-bottom-left-radius: 4px;
+    max-width: 100%;
 }
 .msg.user .msg-bubble {
     background: var(--navy); color: white;
