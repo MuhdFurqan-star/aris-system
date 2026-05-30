@@ -76,8 +76,9 @@
 .msg-avatar.bot-av { background: var(--navy); color: white; }
 
 .msg-bubble {
-    max-width: 74%; padding: 10px 14px; border-radius: 16px;
+    max-width: 74%; min-width: 0; padding: 10px 14px; border-radius: 16px;
     font-size: 13px; line-height: 1.65; word-break: break-word;
+    overflow-wrap: break-word;
 }
 .msg.bot  .msg-bubble {
     background: var(--page-bg); color: var(--text-1);
@@ -86,6 +87,7 @@
 .msg.user .msg-bubble {
     background: var(--navy); color: white;
     border-bottom-right-radius: 4px;
+    white-space: nowrap; word-break: normal; overflow-wrap: normal;
 }
 .msg.user .msg-bubble strong { color: #e8f0fb; }
 
