@@ -33,12 +33,24 @@
 .sc-meta i { color: var(--navy); width: 12px; font-size: 11px; }
 
 .sc-schedules { margin-top: 10px; }
+.sc-schedule-row {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin: 2px 4px 2px 0;
+}
 .sc-schedule-pill {
     display: inline-flex; align-items: center; gap: 4px;
     background: var(--navy-light); color: var(--navy);
     font-size: 10px; font-weight: 700; padding: 3px 8px;
-    border-radius: 10px; margin: 2px 2px 2px 0;
+    border-radius: 10px 0 0 10px;
 }
+.sc-qr-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: var(--navy); color: #fff;
+    font-size: 10px; font-weight: 700; padding: 3px 8px;
+    border-radius: 0 10px 10px 0; text-decoration: none;
+    transition: background .15s;
+}
+.sc-qr-btn:hover { background: #162e4a; color: #fff; }
 
 .sc-actions { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
 .sc-btn {
@@ -152,14 +164,20 @@
                             <div class="sc-meta"><i class="fas fa-star"></i> {{ subj.credit_hours }} credit hour{{ subj.credit_hours|pluralize }}</div>
                             <div class="sc-meta"><i class="fas fa-clock"></i> {{ subj.contact_hours_per_week }}h/week · {{ subj.total_weeks }} weeks</div>
 
-                            <!-- Weekly schedule pills -->
+                            <!-- Weekly schedule pills with QR buttons -->
                             {% if subj.schedules.all %}
                             <div class="sc-schedules">
                                 {% for sched in subj.schedules.all %}
-                                <span class="sc-schedule-pill">
-                                    <i class="fas fa-calendar-day" style="font-size:9px;"></i>
-                                    {{ sched.get_day_of_week_display }} {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}
-                                </span>
+                                <div class="sc-schedule-row">
+                                    <span class="sc-schedule-pill">
+                                        <i class="fas fa-calendar-day" style="font-size:9px;"></i>
+                                        {{ sched.get_day_of_week_display }} {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}
+                                    </span>
+                                    <a href="{% url 'lecturer_generate_schedule_qr' sched.id %}?date={{ today|date:'Y-m-d' }}"
+                                       class="sc-qr-btn" title="Open QR attendance for today's class">
+                                        <i class="fas fa-qrcode"></i> QR
+                                    </a>
+                                </div>
                                 {% endfor %}
                             </div>
                             {% else %}

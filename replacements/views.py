@@ -2850,6 +2850,12 @@ def lecturer_class_timetable(request, sem_id):
         messages.error(request, 'You are not assigned to any subject in this class group.')
         return redirect('lecturer_my_classes')
 
+    # Pre-build a set of this lecturer's own subject IDs for reliable is_mine checks
+    my_subject_ids = set(
+        Subject.objects.filter(lecturer=request.user, semester=semester)
+        .values_list('id', flat=True)
+    )
+
     HOUR_SLOTS = list(range(8, 18))
     SLOT_KEYS  = [f"{h:02d}:00" for h in HOUR_SLOTS]
 
@@ -2912,7 +2918,7 @@ def lecturer_class_timetable(request, sem_id):
         day = week_days[sched.day_of_week]
         sk  = f"{sched.start_time.hour:02d}:00"
         dur = max(1, sched.end_time.hour - sched.start_time.hour)
-        is_mine = sched.subject.lecturer_id == request.user.id
+        is_mine = sched.subject_id in my_subject_ids
         _add(sk, day, {
             'type':        'regular',
             'code':        sched.subject.subject_code,
@@ -2929,7 +2935,7 @@ def lecturer_class_timetable(request, sem_id):
     for r in repl_qs:
         sh, dur = _parse_slot(r.replacement_time_slot)
         sk = f"{sh:02d}:00"
-        is_mine = r.lecturer_id == request.user.id
+        is_mine = r.subject_id in my_subject_ids
         _add(sk, r.replacement_date, {
             'type':          'replacement',
             'code':          r.subject.subject_code,

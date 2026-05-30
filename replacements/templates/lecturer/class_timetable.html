@@ -241,12 +241,6 @@
                                     <i class="fas fa-clock" style="font-size:8px;"></i>
                                     {{ item.start }} – {{ item.end }}
                                 </div>
-                                {% if item.is_mine %}
-                                <a href="{% url 'lecturer_generate_schedule_qr' item.schedule_id %}?date={{ item.cell_date }}"
-                                   class="cc-qr-btn" title="Generate QR Attendance">
-                                    <i class="fas fa-qrcode"></i> QR
-                                </a>
-                                {% endif %}
                             </div>
 
                             {% elif item.type == 'replacement' %}
