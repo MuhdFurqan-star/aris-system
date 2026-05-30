@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Attendance Report{% endblock %}
+
+{% block extra_css %}
+<style>
+.subject-block {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 20px; overflow: hidden;
+}
+.subject-head {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    padding: 14px 20px; background: var(--navy); color: #fff; cursor: pointer;
+}
+.subject-head-left { display: flex; align-items: center; gap: 12px; }
+.sub-code { font-weight: 800; font-size: 14px; }
+.sub-name { font-size: 12px; opacity: .8; }
+.sub-meta { font-size: 11px; opacity: .7; }
+.sub-stats {
+    display: flex; gap: 12px; align-items: center;
+}
+.stat-pill {
+    font-size: 11px; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap;
+}
+.pill-sessions { background: rgba(255,255,255,.2); color: #fff; }
+.pill-enrolled { background: rgba(255,255,255,.15); color: #fff; }
+.collapse-icon { font-size: 12px; opacity: .7; transition: transform .2s; }
+.subject-body { padding: 0 20px 16px; }
+
+/* Student table */
+.att-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.att-table th {
+    background: var(--page-bg); color: var(--text-3);
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    padding: 8px 10px; text-align: left; border-bottom: 2px solid var(--border);
+}
+.att-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.att-table tr:last-child td { border-bottom: none; }
+.att-table tr:hover td { background: var(--page-bg); }
+
+/* Attendance bar */
+.att-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.att-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.att-bar-fill { height: 100%; border-radius: 3px; }
+.fill-good   { background: #276749; }
+.fill-warn   { background: #b7791f; }
+.fill-low    { background: #9b2c2c; }
+.att-pct { font-size: 11px; font-weight: 700; white-space: nowrap; width: 36px; text-align: right; }
+.pct-good { color: #276749; }
+.pct-warn { color: #b7791f; }
+.pct-low  { color: #9b2c2c; }
+
+/* Sessions preview */
+.session-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.session-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-2); background: var(--page-bg);
+    text-decoration: none; transition: all .15s;
+}
+.session-chip:hover { border-color: var(--navy); color: var(--navy); background: #ebf0f8; }
+.chip-type-regular     { border-color: #c6f6d5; color: #276749; background: #f0fff4; }
+.chip-type-replacement { border-color: #bee3f8; color: #1a3a6b; background: #ebf8ff; }
+
+.no-sessions {
+    padding: 20px 0; text-align: center; color: var(--text-3); font-size: 13px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:900px; margin:0 auto;">
+
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-chart-bar me-2" style="color:var(--navy);"></i>Attendance Report</h1>
+            <p>Per-student attendance summary across all your subjects.</p>
+        </div>
+        <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    {% if not report %}
+    <div class="card-academic" style="text-align:center; padding:40px;">
+        <i class="fas fa-clipboard-list" style="font-size:36px; opacity:.2; display:block; margin-bottom:12px;"></i>
+        <div style="font-weight:700; font-size:15px; color:var(--text-2); margin-bottom:6px;">No subjects assigned yet</div>
+        <div style="font-size:13px; color:var(--text-3);">Attendance data will appear here once you have subjects and QR sessions.</div>
+    </div>
+    {% endif %}
+
+    {% for item in report %}
+    <div class="subject-block">
+        <div class="subject-head" onclick="toggleBlock('sub-{{ forloop.counter }}', this)">
+            <div class="subject-head-left">
+                <div>
+                    <div class="sub-code">{{ item.subject.subject_code }}</div>
+                    <div class="sub-name">{{ item.subject.subject_name }}</div>
+                    <div class="sub-meta">Sem {{ item.subject.semester.name }} · {{ item.subject.semester.class_name }}</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="sub-stats">
+                    <span class="stat-pill pill-sessions"><i class="fas fa-calendar-check me-1"></i>{{ item.total_sessions }} session{{ item.total_sessions|pluralize }}</span>
+                    <span class="stat-pill pill-enrolled"><i class="fas fa-users me-1"></i>{{ item.students|length }} student{{ item.students|length|pluralize }}</span>
+                </div>
+                <i class="fas fa-chevron-down collapse-icon" id="icon-sub-{{ forloop.counter }}"></i>
+            </div>
+        </div>
+
+        <div id="sub-{{ forloop.counter }}" class="subject-body">
+            {% if item.total_sessions == 0 %}
+            <div class="no-sessions">
+                <i class="fas fa-qrcode" style="font-size:28px; opacity:.2; display:block; margin-bottom:8px;"></i>
+                No QR sessions have been opened for this subject yet.
+                <br><small>Generate a QR from the timetable to start tracking attendance.</small>
+            </div>
+            {% elif not item.students %}
+            <div class="no-sessions">No students enrolled in this semester yet.</div>
+            {% else %}
+            <table class="att-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Present</th>
+                        <th style="min-width:160px;">Attendance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in item.students %}
+                    <tr>
+                        <td>
+                            <div style="font-weight:600;">{{ row.student.get_full_name }}</div>
+                            <div style="font-size:11px; color:var(--text-3);">{{ row.student.username }}</div>
+                        </td>
+                        <td style="font-weight:700;">{{ row.attended }} / {{ row.total_sessions }}</td>
+                        <td>
+                            <div class="att-bar-wrap">
+                                <div class="att-bar">
+                                    <div class="att-bar-fill fill-{{ row.status }}" style="width:{{ row.percentage }}%;"></div>
+                                </div>
+                                <span class="att-pct pct-{{ row.status }}">{{ row.percentage }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- Recent session chips -->
+            {% if item.sessions %}
+            <div class="session-chips">
+                <span style="font-size:11px; font-weight:700; color:var(--text-3); align-self:center;">Recent sessions:</span>
+                {% for sess in item.sessions %}
+                <a href="{% url 'lecturer_attendance_session_detail' sess.id %}" class="session-chip chip-type-{{ sess.session_type }}">
+                    <i class="fas {% if sess.session_type == 'regular' %}fa-calendar{% else %}fa-exchange-alt{% endif %}"></i>
+                    {{ sess.display_date|date:"d M" }}
+                    <span style="opacity:.7;">{{ sess.display_time }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+
+<script>
+function toggleBlock(id, header) {
+    const body = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    const open = body.style.display !== 'none' && body.style.display !== '';
+    body.style.display = open ? 'none' : 'block';
+    if (icon) icon.style.transform = open ? 'rotate(-90deg)' : '';
+}
+</script>
+{% endblock %}

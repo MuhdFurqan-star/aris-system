@@ -115,6 +115,15 @@ def dashboard(request):
 # ==================== STUDENT VIEWS ====================
 
 @login_required
+@login_required
+def student_scan_qr_page(request):
+    """In-app QR scanner page — uses device camera via jsQR."""
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'student':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+    return render(request, 'student/scan_qr_scanner.html')
+
+
 def student_dashboard(request):
     """Student dashboard showing bookmarked replacements"""
     if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'student':
@@ -1769,13 +1778,20 @@ def lecturer_generate_qr(request, request_id):
     )
 
     session, created = AttendanceSession.objects.get_or_create(
+        session_type='replacement',
         replacement_request=replacement,
         defaults={
-            'qr_token':  uuid.uuid4().hex,
-            'is_active': True,
-            'expires_at': timezone.now() + timedelta(hours=3),
+            'qr_token':   uuid.uuid4().hex,
+            'is_active':  True,
+            'expires_at': timezone.now() + timedelta(minutes=15),
+            'opened_by':  request.user,
         }
     )
+    if not created and timezone.now() > session.expires_at and request.method == 'POST':
+        session.qr_token   = uuid.uuid4().hex
+        session.expires_at = timezone.now() + timedelta(minutes=15)
+        session.is_active  = True
+        session.save()
 
     scan_url = request.build_absolute_uri(f'/attendance/scan/{session.qr_token}/')
 
@@ -1806,14 +1822,203 @@ def lecturer_generate_qr(request, request_id):
 @login_required
 def lecturer_toggle_qr_session(request, session_id):
     """Activate or deactivate a QR session."""
-    session = get_object_or_404(AttendanceSession, id=session_id,
-                                replacement_request__lecturer=request.user)
-    if request.method == 'POST':
-        session.is_active = not session.is_active
+    # Support both replacement and regular sessions
+    session = get_object_or_404(AttendanceSession, id=session_id)
+    # Security: only the opener / the replacement lecturer can toggle
+    if session.session_type == 'replacement':
+        if session.replacement_request.lecturer != request.user:
+            messages.error(request, 'Access denied.')
+            return redirect('dashboard')
+        if request.method == 'POST':
+            session.is_active = not session.is_active
+            session.save()
+        return redirect('lecturer_generate_qr', request_id=session.replacement_request_id)
+    else:
+        if session.opened_by != request.user:
+            messages.error(request, 'Access denied.')
+            return redirect('dashboard')
+        if request.method == 'POST':
+            session.is_active = not session.is_active
+            session.save()
+        return redirect('lecturer_generate_schedule_qr', schedule_id=session.schedule_id,
+                        permanent=False)
+
+
+@login_required
+def lecturer_generate_schedule_qr(request, schedule_id):
+    """Generate / show QR for a regular (timetabled) class session for today."""
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    schedule = get_object_or_404(
+        ClassSchedule, id=schedule_id, subject__lecturer=request.user
+    )
+
+    # Allow any date override via GET param (for testing); default to today
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            class_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            class_date = timezone.now().date()
+    else:
+        class_date = timezone.now().date()
+
+    # Get or create the attendance session for this schedule + date
+    session, created = AttendanceSession.objects.get_or_create(
+        session_type='regular',
+        schedule=schedule,
+        class_date=class_date,
+        defaults={
+            'qr_token':   uuid.uuid4().hex,
+            'is_active':  True,
+            'expires_at': timezone.now() + timedelta(minutes=15),
+            'opened_by':  request.user,
+        }
+    )
+    # If the session exists but has expired, reset the token and expiry
+    if not created and timezone.now() > session.expires_at and request.method == 'POST':
+        session.qr_token   = uuid.uuid4().hex
+        session.expires_at = timezone.now() + timedelta(minutes=15)
+        session.is_active  = True
         session.save()
-        status = 'activated' if session.is_active else 'deactivated'
-        messages.success(request, f'QR session {status}.')
-    return redirect('lecturer_generate_qr', request_id=session.replacement_request_id)
+
+    scan_url = request.build_absolute_uri(f'/attendance/scan/{session.qr_token}/')
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(scan_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode()
+
+    records = AttendanceRecord.objects.filter(session=session).select_related('student').order_by('scanned_at')
+
+    # Enrolled students = students whose enrollment semester matches the subject's semester
+    enrolled_students = User.objects.filter(
+        userprofile__user_type='student',
+        enrollments__semester=schedule.subject.semester
+    ).distinct()
+
+    context = {
+        'schedule':           schedule,
+        'session':            session,
+        'class_date':         class_date,
+        'qr_b64':             qr_b64,
+        'scan_url':           scan_url,
+        'attendance_records': records,
+        'total_present':      records.count(),
+        'enrolled_students':  enrolled_students,
+        'total_enrolled':     enrolled_students.count(),
+        'is_expired':         timezone.now() > session.expires_at,
+        'minutes_left':       max(0, int((session.expires_at - timezone.now()).total_seconds() // 60)),
+    }
+    return render(request, 'lecturer/schedule_qr_attendance.html', context)
+
+
+@login_required
+def lecturer_attendance_report(request):
+    """Attendance report: all subjects taught by the lecturer, with per-student summaries."""
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    my_subjects = Subject.objects.filter(
+        lecturer=request.user
+    ).select_related('semester').order_by('semester', 'subject_code')
+
+    report = []
+    for subject in my_subjects:
+        # All sessions (regular + replacement) for this subject
+        regular_sessions = AttendanceSession.objects.filter(
+            session_type='regular',
+            schedule__subject=subject,
+        )
+        replacement_sessions = AttendanceSession.objects.filter(
+            session_type='replacement',
+            replacement_request__subject=subject,
+        )
+        all_sessions = list(regular_sessions) + list(replacement_sessions)
+        total_sessions = len(all_sessions)
+
+        # Enrolled students
+        enrolled = User.objects.filter(
+            userprofile__user_type='student',
+            enrollments__semester=subject.semester
+        ).distinct().order_by('last_name', 'first_name')
+
+        student_rows = []
+        for student in enrolled:
+            attended = AttendanceRecord.objects.filter(
+                session__in=all_sessions,
+                student=student
+            ).count()
+            pct = round((attended / total_sessions * 100)) if total_sessions else 0
+            student_rows.append({
+                'student':         student,
+                'attended':        attended,
+                'total_sessions':  total_sessions,
+                'percentage':      pct,
+                'status':          'good' if pct >= 80 else ('warn' if pct >= 60 else 'low'),
+            })
+
+        report.append({
+            'subject':        subject,
+            'total_sessions': total_sessions,
+            'students':       student_rows,
+            'sessions':       sorted(
+                all_sessions,
+                key=lambda s: s.display_date or timezone.now().date(),
+                reverse=True
+            )[:5],  # Latest 5 sessions preview
+        })
+
+    return render(request, 'lecturer/attendance_report.html', {
+        'report': report,
+    })
+
+
+@login_required
+def lecturer_attendance_session_detail(request, session_id):
+    """Per-session attendance detail — who attended, who was absent."""
+    if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    session = get_object_or_404(AttendanceSession, id=session_id)
+
+    # Security: only the lecturer who owns the subject
+    subject = session.subject
+    if not subject or subject.lecturer != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('lecturer_attendance_report')
+
+    records = AttendanceRecord.objects.filter(session=session).select_related('student').order_by('scanned_at')
+    present_ids = set(records.values_list('student_id', flat=True))
+
+    enrolled = User.objects.filter(
+        userprofile__user_type='student',
+        enrollments__semester=subject.semester
+    ).distinct().order_by('last_name', 'first_name')
+
+    rows = []
+    for student in enrolled:
+        rec = next((r for r in records if r.student_id == student.id), None)
+        rows.append({
+            'student':    student,
+            'present':    student.id in present_ids,
+            'scanned_at': rec.scanned_at if rec else None,
+        })
+
+    return render(request, 'lecturer/attendance_session_detail.html', {
+        'session':         session,
+        'subject':         subject,
+        'rows':            rows,
+        'total_present':   len(present_ids),
+        'total_enrolled':  enrolled.count(),
+    })
 
 
 @login_required
@@ -1824,6 +2029,18 @@ def student_scan_qr(request, token):
         return redirect('dashboard')
 
     session = get_object_or_404(AttendanceSession, qr_token=token)
+    subject = session.subject
+
+    # Enrollment check: student must be in the subject's semester
+    if subject:
+        enrolled = request.user.enrollments.filter(semester=subject.semester).exists()
+        if not enrolled:
+            ctx = {
+                'status': 'not_enrolled',
+                'session': session,
+                'subject_name': subject.subject_name,
+            }
+            return render(request, 'student/scan_qr.html', ctx)
 
     def _session_status():
         if not session.is_active:
@@ -1834,19 +2051,33 @@ def student_scan_qr(request, token):
             return 'already'
         return None
 
+    # Build a unified context dict regardless of session type
+    ctx = {
+        'session':      session,
+        'subject_name': subject.subject_name if subject else '—',
+        'subject_code': subject.subject_code if subject else '—',
+        'lecturer':     session.lecturer.get_full_name() if session.lecturer else '—',
+        'date':         session.display_date,
+        'time':         session.display_time,
+        'venue':        session.display_venue,
+    }
+
     status = _session_status()
     if status:
-        return render(request, 'student/scan_qr.html', {'status': status, 'session': session})
+        ctx['status'] = status
+        return render(request, 'student/scan_qr.html', ctx)
 
     if request.method == 'POST':
-        # Re-validate before writing — guards against race between GET confirm and POST submit
         status = _session_status()
         if status:
-            return render(request, 'student/scan_qr.html', {'status': status, 'session': session})
+            ctx['status'] = status
+            return render(request, 'student/scan_qr.html', ctx)
         AttendanceRecord.objects.get_or_create(session=session, student=request.user)
-        return render(request, 'student/scan_qr.html', {'status': 'success', 'session': session})
+        ctx['status'] = 'success'
+        return render(request, 'student/scan_qr.html', ctx)
 
-    return render(request, 'student/scan_qr.html', {'status': 'confirm', 'session': session})
+    ctx['status'] = 'confirm'
+    return render(request, 'student/scan_qr.html', ctx)
 
 
 # ==================== ANALYTICS JSON ENDPOINT (for Chart.js) ====================
@@ -2683,14 +2914,16 @@ def lecturer_class_timetable(request, sem_id):
         dur = max(1, sched.end_time.hour - sched.start_time.hour)
         is_mine = sched.subject.lecturer_id == request.user.id
         _add(sk, day, {
-            'type':     'regular',
-            'code':     sched.subject.subject_code,
-            'name':     sched.subject.subject_name,
-            'lecturer': sched.subject.lecturer.get_full_name() if sched.subject.lecturer else '—',
-            'is_mine':  is_mine,
-            'sem':      str(sched.subject.semester),
-            'start':    sched.start_time.strftime('%H:%M'),
-            'end':      sched.end_time.strftime('%H:%M'),
+            'type':        'regular',
+            'code':        sched.subject.subject_code,
+            'name':        sched.subject.subject_name,
+            'lecturer':    sched.subject.lecturer.get_full_name() if sched.subject.lecturer else '—',
+            'is_mine':     is_mine,
+            'sem':         str(sched.subject.semester),
+            'start':       sched.start_time.strftime('%H:%M'),
+            'end':         sched.end_time.strftime('%H:%M'),
+            'schedule_id': sched.id,
+            'cell_date':   day.strftime('%Y-%m-%d'),
         }, dur)
 
     for r in repl_qs:

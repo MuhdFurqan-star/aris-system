@@ -227,16 +227,84 @@ class Notification(models.Model):
 
 
 class AttendanceSession(models.Model):
-    replacement_request = models.OneToOneField(
+    SESSION_TYPES = [
+        ('replacement', 'Replacement Class'),
+        ('regular',     'Regular Class'),
+    ]
+    session_type        = models.CharField(max_length=20, choices=SESSION_TYPES, default='replacement')
+    # Replacement class session (existing)
+    replacement_request = models.ForeignKey(
         'ClassReplacementRequest', on_delete=models.CASCADE,
-        related_name='attendance_session'
+        null=True, blank=True, related_name='attendance_sessions'
+    )
+    # Regular class session (new)
+    schedule   = models.ForeignKey(
+        'ClassSchedule', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='attendance_sessions'
+    )
+    class_date  = models.DateField(null=True, blank=True)  # actual date for regular sessions
+    opened_by   = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='opened_attendance_sessions'
     )
     qr_token    = models.CharField(max_length=64, unique=True)
     is_active   = models.BooleanField(default=True)
     created_at  = models.DateTimeField(auto_now_add=True)
     expires_at  = models.DateTimeField()
 
+    class Meta:
+        # Prevent duplicate sessions for the same regular class on the same day
+        constraints = [
+            models.UniqueConstraint(
+                fields=['schedule', 'class_date'],
+                condition=models.Q(session_type='regular'),
+                name='unique_regular_session_per_day'
+            )
+        ]
+
+    @property
+    def subject(self):
+        if self.session_type == 'replacement' and self.replacement_request:
+            return self.replacement_request.subject
+        if self.session_type == 'regular' and self.schedule:
+            return self.schedule.subject
+        return None
+
+    @property
+    def display_date(self):
+        if self.session_type == 'replacement' and self.replacement_request:
+            return self.replacement_request.replacement_date
+        return self.class_date
+
+    @property
+    def display_time(self):
+        if self.session_type == 'replacement' and self.replacement_request:
+            return self.replacement_request.replacement_time_slot
+        if self.session_type == 'regular' and self.schedule:
+            return f"{self.schedule.start_time.strftime('%H:%M')}–{self.schedule.end_time.strftime('%H:%M')}"
+        return '—'
+
+    @property
+    def display_venue(self):
+        if self.session_type == 'replacement' and self.replacement_request:
+            return self.replacement_request.venue.venue_name
+        if self.session_type == 'regular' and self.schedule and self.schedule.venue:
+            return self.schedule.venue.venue_name
+        return '—'
+
+    @property
+    def lecturer(self):
+        if self.opened_by:
+            return self.opened_by
+        if self.session_type == 'replacement' and self.replacement_request:
+            return self.replacement_request.lecturer
+        if self.session_type == 'regular' and self.schedule:
+            return self.schedule.subject.lecturer
+        return None
+
     def __str__(self):
+        if self.session_type == 'regular':
+            return f"QR Session — {self.schedule} on {self.class_date}"
         return f"QR Session — {self.replacement_request}"
 
 

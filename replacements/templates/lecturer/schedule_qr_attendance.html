@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}QR Attendance — {{ schedule.subject.subject_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.qr-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+.qr-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; text-align: center;
+}
+.qr-card-head {
+    padding: 16px 20px; background: var(--navy); color: #fff;
+}
+.qr-card-body { padding: 20px; }
+.qr-img { width: 100%; max-width: 260px; border-radius: 8px; display: block; margin: 0 auto 14px; }
+.qr-url {
+    font-size: 10px; font-family: monospace; color: var(--text-3);
+    word-break: break-all; padding: 6px 8px;
+    background: var(--page-bg); border-radius: 5px; margin-bottom: 12px;
+}
+.timer-bar {
+    height: 6px; border-radius: 3px; background: var(--border);
+    margin: 10px 0; overflow: hidden;
+}
+.timer-fill {
+    height: 100%; background: #276749; border-radius: 3px;
+    transition: width 1s linear;
+}
+.timer-fill.warn   { background: #b7791f; }
+.timer-fill.danger { background: #9b2c2c; }
+.timer-text {
+    font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 12px;
+}
+.status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+}
+.badge-active  { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.badge-expired { background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; }
+.badge-closed  { background: var(--page-bg); color: var(--text-3); border: 1px solid var(--border); }
+
+.info-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px;
+}
+.info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.info-row:last-child { border-bottom: none; }
+.info-row .lbl { color: var(--text-3); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+.info-row .val { font-weight: 600; color: var(--text-1); }
+
+.record-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+.record-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--page-bg);
+    border-radius: var(--radius); font-size: 13px; border: 1px solid var(--border);
+}
+.record-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #ebf0f8; color: var(--navy);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.record-time { font-size: 11px; color: var(--text-3); margin-left: auto; font-family: monospace; }
+
+@media (max-width: 700px) {
+    .qr-layout { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:900px; margin:0 auto;">
+
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-qrcode me-2" style="color:var(--navy);"></i>QR Attendance</h1>
+            <p>{{ schedule.subject.subject_code }} — {{ schedule.subject.subject_name }}</p>
+        </div>
+        <a href="{% url 'lecturer_class_timetable' schedule.subject.semester.id %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Back to Timetable
+        </a>
+    </div>
+
+    <div class="qr-layout">
+
+        <!-- QR Code panel -->
+        <div class="qr-card">
+            <div class="qr-card-head">
+                <div style="font-weight:700; font-size:15px; margin-bottom:3px;">{{ schedule.subject.subject_code }}</div>
+                <div style="font-size:12px; opacity:.8;">{{ class_date|date:"l, d M Y" }}</div>
+                <div style="font-size:12px; opacity:.8;">{{ schedule.start_time|time:"H:i" }} – {{ schedule.end_time|time:"H:i" }}</div>
+            </div>
+            <div class="qr-card-body">
+                {% if is_expired %}
+                <div style="padding:30px 0; color:var(--text-3);">
+                    <i class="fas fa-hourglass-end" style="font-size:40px; display:block; margin-bottom:12px; opacity:.3;"></i>
+                    <div style="font-weight:700; font-size:14px; margin-bottom:8px;">QR Expired</div>
+                    <div style="font-size:12px; margin-bottom:16px;">The 15-minute window has closed.</div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-primary-academic" style="width:100%; justify-content:center; padding:11px;">
+                            <i class="fas fa-redo me-1"></i> Reopen (New 15-min window)
+                        </button>
+                    </form>
+                </div>
+                {% elif not session.is_active %}
+                <div style="padding:30px 0; color:var(--text-3);">
+                    <i class="fas fa-lock" style="font-size:40px; display:block; margin-bottom:12px; opacity:.3;"></i>
+                    <div style="font-weight:700; font-size:14px; margin-bottom:16px;">Session Paused</div>
+                    <form method="POST" action="{% url 'lecturer_toggle_qr_session' session.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-primary-academic" style="width:100%; justify-content:center; padding:11px;">
+                            <i class="fas fa-play me-1"></i> Resume Session
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code" class="qr-img">
+                <div class="qr-url">{{ scan_url }}</div>
+                <!-- Countdown timer -->
+                <div class="timer-text" id="timer-text">
+                    <i class="fas fa-clock me-1"></i> <span id="timer-display">{{ minutes_left }}:00</span> remaining
+                </div>
+                <div class="timer-bar">
+                    <div class="timer-fill" id="timer-fill" style="width:{{ minutes_left|floatformat:0 }}0%;"></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:14px;">
+                    <form method="POST" action="{% url 'lecturer_toggle_qr_session' session.id %}" style="flex:1;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-outline-academic" style="width:100%; justify-content:center; padding:9px; font-size:12px;">
+                            <i class="fas fa-pause me-1"></i> Pause
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right panel: session info + attendance list -->
+        <div>
+            <!-- Session info -->
+            <div class="info-card">
+                <div style="font-size:12px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px;">Session Details</div>
+                <div class="info-row"><span class="lbl">Subject</span><span class="val">{{ schedule.subject.subject_name }}</span></div>
+                <div class="info-row"><span class="lbl">Date</span><span class="val">{{ class_date|date:"d M Y, l" }}</span></div>
+                <div class="info-row"><span class="lbl">Time</span><span class="val">{{ schedule.start_time|time:"H:i" }} – {{ schedule.end_time|time:"H:i" }}</span></div>
+                <div class="info-row"><span class="lbl">Venue</span><span class="val">{{ schedule.venue.venue_name|default:"—" }}</span></div>
+                <div class="info-row">
+                    <span class="lbl">Status</span>
+                    <span class="val">
+                        {% if is_expired %}
+                        <span class="status-badge badge-expired"><i class="fas fa-hourglass-end"></i> Expired</span>
+                        {% elif session.is_active %}
+                        <span class="status-badge badge-active"><i class="fas fa-circle" style="font-size:7px;"></i> Active</span>
+                        {% else %}
+                        <span class="status-badge badge-closed"><i class="fas fa-pause"></i> Paused</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="lbl">Present</span>
+                    <span class="val" id="present-count">{{ total_present }} / {{ total_enrolled }} students</span>
+                </div>
+            </div>
+
+            <!-- Attendance records -->
+            <div class="info-card">
+                <div style="font-size:12px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:12px;">
+                    <i class="fas fa-users me-1"></i> Scanned In
+                </div>
+                {% if attendance_records %}
+                <div class="record-list" id="record-list">
+                    {% for rec in attendance_records %}
+                    <div class="record-row">
+                        <div class="record-avatar">{{ rec.student.first_name|first|upper }}</div>
+                        <div>
+                            <div style="font-weight:600; font-size:13px;">{{ rec.student.get_full_name }}</div>
+                            <div style="font-size:11px; color:var(--text-3);">{{ rec.student.username }}</div>
+                        </div>
+                        <span class="record-time">{{ rec.scanned_at|time:"H:i" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align:center; padding:24px 0; color:var(--text-3); font-size:13px;">
+                    <i class="fas fa-user-clock" style="font-size:28px; opacity:.2; display:block; margin-bottom:8px;"></i>
+                    No students have scanned in yet.
+                </div>
+                {% endif %}
+            </div>
+
+            <a href="{% url 'lecturer_attendance_report' %}" class="btn-outline-academic" style="display:flex; justify-content:center; padding:11px;">
+                <i class="fas fa-chart-bar me-1"></i> View Full Attendance Report
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Countdown timer
+(function () {
+    const expiresAt   = new Date("{{ session.expires_at|date:'c' }}");
+    const totalMs     = 15 * 60 * 1000;
+    const timerText   = document.getElementById('timer-display');
+    const timerFill   = document.getElementById('timer-fill');
+    if (!timerText || !timerFill) return;
+
+    function update() {
+        const left = Math.max(0, expiresAt - Date.now());
+        const mins = Math.floor(left / 60000);
+        const secs = Math.floor((left % 60000) / 1000);
+        timerText.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+        const pct = (left / totalMs) * 100;
+        timerFill.style.width = pct + '%';
+        timerFill.className   = 'timer-fill' + (pct < 25 ? ' danger' : pct < 50 ? ' warn' : '');
+        if (left <= 0) {
+            clearInterval(interval);
+            location.reload();
+        }
+    }
+    const interval = setInterval(update, 1000);
+    update();
+
+    // Auto-refresh attendance list every 10s
+    setInterval(function () { location.reload(); }, 10000);
+})();
+</script>
+{% endblock %}

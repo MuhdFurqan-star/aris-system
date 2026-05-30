@@ -130,6 +130,17 @@
     padding-top:3px;
 }
 
+/* ── QR button inside card ───────────────────────────── */
+.cc-qr-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 6px; padding: 3px 8px; border-radius: 5px;
+    font-size: 10px; font-weight: 700; text-decoration: none;
+    background: rgba(255,255,255,.2); color: #fff;
+    border: 1px solid rgba(255,255,255,.3);
+    transition: all .15s;
+}
+.cc-qr-btn:hover { background: rgba(255,255,255,.35); color: #fff; }
+
 /* ── Legend ──────────────────────────────────────────── */
 .legend { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; }
 .legend-item { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); }
@@ -230,6 +241,12 @@
                                     <i class="fas fa-clock" style="font-size:8px;"></i>
                                     {{ item.start }} – {{ item.end }}
                                 </div>
+                                {% if item.is_mine %}
+                                <a href="{% url 'lecturer_generate_schedule_qr' item.schedule_id %}?date={{ item.cell_date }}"
+                                   class="cc-qr-btn" title="Generate QR Attendance">
+                                    <i class="fas fa-qrcode"></i> QR
+                                </a>
+                                {% endif %}
                             </div>
 
                             {% elif item.type == 'replacement' %}

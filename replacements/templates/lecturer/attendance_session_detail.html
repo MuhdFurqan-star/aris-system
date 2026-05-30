@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Session Detail — {{ subject.subject_code }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+.info-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px;
+}
+.info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.info-row:last-child { border-bottom: none; }
+.info-row .lbl { color: var(--text-3); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+.info-row .val { font-weight: 600; color: var(--text-1); }
+.stat-box {
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; text-align: center; margin-bottom: 10px;
+}
+.stat-num { font-size: 32px; font-weight: 800; color: var(--navy); line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.stat-pct { font-size: 18px; font-weight: 700; color: #276749; }
+
+/* Student rows */
+.student-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-size: 13px; transition: background .15s;
+}
+.student-row:hover { background: var(--page-bg); }
+.student-row:last-child { border-bottom: none; }
+.av {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+}
+.av.present { background: #f0fff4; color: #276749; }
+.av.absent  { background: #fff5f5; color: #9b2c2c; }
+.badge-present { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.badge-absent  { background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.scan-time { font-size: 11px; color: var(--text-3); font-family: monospace; margin-left: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="max-width:900px; margin:0 auto;">
+
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-clipboard-check me-2" style="color:var(--navy);"></i>Session Detail</h1>
+            <p>{{ subject.subject_code }} — {{ subject.subject_name }}</p>
+        </div>
+        <a href="{% url 'lecturer_attendance_report' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Back to Report
+        </a>
+    </div>
+
+    <div class="detail-grid">
+
+        <!-- Left: info + stats -->
+        <div>
+            <div class="info-card">
+                <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px;">Session Info</div>
+                <div class="info-row"><span class="lbl">Type</span><span class="val">{% if session.session_type == 'regular' %}Regular Class{% else %}Replacement Class{% endif %}</span></div>
+                <div class="info-row"><span class="lbl">Date</span><span class="val">{{ session.display_date|date:"d M Y, l" }}</span></div>
+                <div class="info-row"><span class="lbl">Time</span><span class="val">{{ session.display_time }}</span></div>
+                <div class="info-row"><span class="lbl">Venue</span><span class="val">{{ session.display_venue }}</span></div>
+                <div class="info-row"><span class="lbl">Opened</span><span class="val">{{ session.created_at|date:"d M Y H:i" }}</span></div>
+                <div class="info-row"><span class="lbl">Expired</span><span class="val">{{ session.expires_at|date:"H:i" }}</span></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+                <div class="stat-box">
+                    <div class="stat-num">{{ total_present }}</div>
+                    <div class="stat-lbl">Present</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" style="color:#9b2c2c;">{{ total_enrolled|add:"-"|add:total_present }}</div>
+                    <div class="stat-lbl">Absent</div>
+                </div>
+            </div>
+            <div class="stat-box">
+                {% if total_enrolled > 0 %}
+                <div class="stat-pct">{% widthratio total_present total_enrolled 100 %}%</div>
+                {% else %}
+                <div class="stat-pct">—</div>
+                {% endif %}
+                <div class="stat-lbl">Attendance Rate ({{ total_present }}/{{ total_enrolled }})</div>
+            </div>
+        </div>
+
+        <!-- Right: student list -->
+        <div class="info-card" style="padding:0;">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--border); font-size:12px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px;">
+                <i class="fas fa-users me-1"></i> Student List
+            </div>
+            {% if rows %}
+            {% for row in rows %}
+            <div class="student-row">
+                <div class="av {% if row.present %}present{% else %}absent{% endif %}">
+                    {{ row.student.first_name|first|upper }}
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:600;">{{ row.student.get_full_name }}</div>
+                    <div style="font-size:11px; color:var(--text-3);">{{ row.student.username }}</div>
+                </div>
+                {% if row.present %}
+                <span class="badge-present"><i class="fas fa-check me-1"></i>Present</span>
+                <span class="scan-time">{{ row.scanned_at|time:"H:i:s" }}</span>
+                {% else %}
+                <span class="badge-absent"><i class="fas fa-times me-1"></i>Absent</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center; padding:30px; color:var(--text-3); font-size:13px;">
+                No enrolled students found for this subject.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

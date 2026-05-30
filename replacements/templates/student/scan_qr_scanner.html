@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% block title %}Scan QR Code — ARIS{% endblock %}
+
+{% block extra_css %}
+<style>
+.scanner-wrap {
+    max-width: 480px; margin: 0 auto;
+}
+.scanner-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+.scanner-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+}
+.scanner-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: #ebf0f8; color: var(--navy);
+    display: grid; place-items: center; font-size: 18px; flex-shrink: 0;
+}
+.scanner-body { padding: 20px 24px; }
+
+/* Camera viewfinder */
+.viewfinder-wrap {
+    position: relative; width: 100%; aspect-ratio: 1;
+    background: #000; border-radius: var(--radius);
+    overflow: hidden; margin-bottom: 16px;
+}
+#qr-video {
+    width: 100%; height: 100%; object-fit: cover;
+    display: block;
+}
+.scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.scan-frame {
+    width: 65%; aspect-ratio: 1;
+    border: 3px solid rgba(255,255,255,.8);
+    border-radius: 12px;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,.35);
+    position: relative;
+}
+.scan-frame::before, .scan-frame::after,
+.scan-frame span::before, .scan-frame span::after {
+    content: ''; position: absolute;
+    width: 20px; height: 20px;
+    border-color: #68d391; border-style: solid;
+}
+.scan-frame::before { top: -3px; left: -3px; border-width: 4px 0 0 4px; border-radius: 4px 0 0 0; }
+.scan-frame::after  { top: -3px; right: -3px; border-width: 4px 4px 0 0; border-radius: 0 4px 0 0; }
+.scan-frame span::before { bottom: -3px; left: -3px; border-width: 0 0 4px 4px; border-radius: 0 0 0 4px; }
+.scan-frame span::after  { bottom: -3px; right: -3px; border-width: 0 4px 4px 0; border-radius: 0 0 4px 0; }
+/* Scanning laser line */
+.scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #68d391, transparent);
+    animation: scanLine 2s ease-in-out infinite;
+    top: 0;
+}
+@keyframes scanLine {
+    0%   { top: 5%; opacity: 1; }
+    50%  { top: 90%; }
+    100% { top: 5%; opacity: 1; }
+}
+
+/* Status messages */
+.scanner-status {
+    text-align: center; font-size: 13px; color: var(--text-3);
+    padding: 8px 0; min-height: 28px;
+}
+.scanner-status.detecting { color: var(--navy); font-weight: 600; }
+.scanner-status.success   { color: #276749; font-weight: 700; }
+.scanner-status.error     { color: #9b2c2c; font-weight: 600; }
+
+/* Camera off placeholder */
+.camera-off {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #111; color: rgba(255,255,255,.5);
+    gap: 10px; font-size: 13px;
+}
+.camera-off i { font-size: 36px; }
+
+.tips {
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    font-size: 12px; color: var(--text-3); margin-top: 12px;
+}
+.tips li { margin-bottom: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+<div class="scanner-wrap">
+
+    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-qrcode me-2" style="color:var(--navy);"></i>Scan Attendance QR</h1>
+            <p>Point your camera at the QR code shown by your lecturer.</p>
+        </div>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="scanner-card">
+        <div class="scanner-header">
+            <div class="scanner-icon"><i class="fas fa-camera"></i></div>
+            <div>
+                <div style="font-weight:700; font-size:14px; color:var(--text-1);">Camera Scanner</div>
+                <div style="font-size:12px; color:var(--text-3);">Hold the QR code steady inside the frame</div>
+            </div>
+        </div>
+        <div class="scanner-body">
+            <!-- Viewfinder -->
+            <div class="viewfinder-wrap">
+                <video id="qr-video" autoplay playsinline muted></video>
+                <canvas id="qr-canvas" style="display:none;"></canvas>
+                <div class="scan-overlay">
+                    <div class="scan-frame">
+                        <span></span>
+                        <div class="scan-line"></div>
+                    </div>
+                </div>
+                <div class="camera-off" id="camera-off">
+                    <i class="fas fa-camera-slash"></i>
+                    <span id="camera-off-msg">Starting camera…</span>
+                </div>
+            </div>
+
+            <!-- Status line -->
+            <div class="scanner-status" id="scanner-status">
+                <i class="fas fa-spinner fa-spin me-1"></i> Starting camera…
+            </div>
+
+            <!-- Start/Stop buttons -->
+            <div style="display:flex; gap:10px; margin-top:12px;">
+                <button id="btn-start" class="btn-primary-academic" style="flex:1; justify-content:center; padding:11px; display:none;">
+                    <i class="fas fa-play me-1"></i> Start Scanning
+                </button>
+                <button id="btn-stop" class="btn-outline-academic" style="flex:1; justify-content:center; padding:11px; display:none;">
+                    <i class="fas fa-stop me-1"></i> Stop
+                </button>
+            </div>
+
+            <ul class="tips">
+                <li>Make sure you are logged in as a student</li>
+                <li>Hold your phone 15–30 cm from the QR code</li>
+                <li>Ensure the QR fits inside the green frame</li>
+                <li>QR codes expire after <strong>15 minutes</strong></li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<!-- jsQR library (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+(function () {
+    const video      = document.getElementById('qr-video');
+    const canvas     = document.getElementById('qr-canvas');
+    const ctx        = canvas.getContext('2d');
+    const cameraOff  = document.getElementById('camera-off');
+    const cameraMsg  = document.getElementById('camera-off-msg');
+    const statusEl   = document.getElementById('scanner-status');
+    const btnStart   = document.getElementById('btn-start');
+    const btnStop    = document.getElementById('btn-stop');
+    let   stream     = null;
+    let   rafId      = null;
+    let   detected   = false;
+
+    function setStatus(msg, cls) {
+        statusEl.textContent = msg;
+        statusEl.className   = 'scanner-status ' + (cls || '');
+    }
+
+    function startCamera() {
+        detected = false;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function (s) {
+                stream = s;
+                video.srcObject = s;
+                video.play();
+                cameraOff.style.display = 'none';
+                btnStart.style.display  = 'none';
+                btnStop.style.display   = 'flex';
+                setStatus('<i class="fas fa-search me-1"></i> Scanning for QR code…', 'detecting');
+                statusEl.innerHTML = '<i class="fas fa-search me-1"></i> Scanning for QR code…';
+                rafId = requestAnimationFrame(tick);
+            })
+            .catch(function (err) {
+                cameraMsg.textContent = 'Camera access denied.';
+                setStatus('Camera access denied. Please allow camera permission and refresh.', 'error');
+                btnStart.style.display = 'flex';
+                btnStop.style.display  = 'none';
+            });
+    }
+
+    function stopCamera() {
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        if (rafId)  { cancelAnimationFrame(rafId); rafId = null; }
+        video.srcObject = null;
+        cameraOff.style.display = 'flex';
+        cameraMsg.textContent = 'Camera stopped.';
+        btnStart.style.display = 'flex';
+        btnStop.style.display  = 'none';
+        setStatus('Camera stopped.', '');
+    }
+
+    function tick() {
+        if (detected) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code    = jsQR(imgData.data, imgData.width, imgData.height, {
+                inversionAttempts: 'dontInvert',
+            });
+            if (code) {
+                detected = true;
+                stopCamera();
+                const url = code.data;
+                // Validate it looks like our scan URL
+                if (url.includes('/attendance/scan/')) {
+                    setStatus('✅ QR detected! Redirecting…', 'success');
+                    statusEl.innerHTML = '✅ QR detected! Redirecting…';
+                    setTimeout(function () { window.location.href = url; }, 600);
+                } else {
+                    setStatus('⚠️ This is not a valid ARIS attendance QR code.', 'error');
+                    detected = false;
+                    setTimeout(startCamera, 2000);
+                }
+                return;
+            }
+        }
+        rafId = requestAnimationFrame(tick);
+    }
+
+    btnStart.addEventListener('click', startCamera);
+    btnStop.addEventListener('click', stopCamera);
+
+    // Auto-start on page load
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        startCamera();
+    } else {
+        cameraMsg.textContent = 'Camera not supported on this browser.';
+        setStatus('Camera not supported. Try Chrome or Safari on your phone.', 'error');
+        btnStart.style.display = 'flex';
+    }
+})();
+</script>
+{% endblock %}

@@ -17,7 +17,6 @@
 .scan-card-header.error   { border-top: 4px solid #9b2c2c; }
 .scan-card-header.warning { border-top: 4px solid #b7791f; }
 .scan-card-header.info    { border-top: 4px solid var(--navy); }
-
 .scan-icon-wrap {
     width: 68px; height: 68px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -27,12 +26,9 @@
 .scan-icon-wrap.error   { background: #fff5f5; color: #9b2c2c; }
 .scan-icon-wrap.warning { background: #fef3c7; color: #b7791f; }
 .scan-icon-wrap.info    { background: #ebf0f8; color: var(--navy); }
-
 .scan-card-header h2 { font-weight: 700; font-size: 1.4rem; color: var(--text-1); margin-bottom: 6px; }
 .scan-card-header p  { font-size: 13px; color: var(--text-3); margin: 0; }
-
 .scan-card-body { padding: 24px 28px; }
-
 .class-detail {
     background: var(--page-bg); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px;
@@ -59,11 +55,11 @@
     </div>
     <div class="scan-card-body">
         <div class="class-detail">
-            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ session.replacement_request.subject.subject_code }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ session.replacement_request.replacement_time_slot }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ session.replacement_request.venue.venue_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ subject_code }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ date }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ time }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ venue }}</span></div>
         </div>
         <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
             <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
@@ -78,9 +74,21 @@
     </div>
     <div class="scan-card-body">
         <div class="class-detail">
-            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ date }}</span></div>
         </div>
+        <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    {% elif status == 'not_enrolled' %}
+    <div class="scan-card-header error">
+        <div class="scan-icon-wrap error"><i class="fas fa-ban"></i></div>
+        <h2>Not Enrolled</h2>
+        <p>You are not enrolled in <strong>{{ subject_name }}</strong>.</p>
+    </div>
+    <div class="scan-card-body">
         <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
             <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
         </a>
@@ -102,7 +110,7 @@
     <div class="scan-card-header error">
         <div class="scan-icon-wrap error"><i class="fas fa-hourglass-end"></i></div>
         <h2>Session Expired</h2>
-        <p>This QR code has expired. Please ask your lecturer to reopen the session.</p>
+        <p>This QR code has expired (15-minute window). Please ask your lecturer to reopen the session.</p>
     </div>
     <div class="scan-card-body">
         <a href="{% url 'student_dashboard' %}" class="btn-outline-academic" style="width:100%; justify-content:center; padding:11px;">
@@ -118,12 +126,12 @@
     </div>
     <div class="scan-card-body">
         <div class="class-detail">
-            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ session.replacement_request.subject.subject_name }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ session.replacement_request.subject.subject_code }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Lecturer</span><span class="val">{{ session.replacement_request.lecturer.get_full_name }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ session.replacement_request.replacement_date }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ session.replacement_request.replacement_time_slot }}</span></div>
-            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ session.replacement_request.venue.venue_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Subject</span><span class="val">{{ subject_name }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Code</span><span class="val">{{ subject_code }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Lecturer</span><span class="val">{{ lecturer }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Date</span><span class="val">{{ date }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Time</span><span class="val">{{ time }}</span></div>
+            <div class="class-detail-row"><span class="lbl">Venue</span><span class="val">{{ venue }}</span></div>
         </div>
         <form method="post">
             {% csrf_token %}

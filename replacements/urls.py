@@ -57,10 +57,18 @@ urlpatterns = [
     path('notifications/read-all/', views.mark_notifications_read, name='mark_notifications_read'),
     path('notifications/read/<int:pk>/', views.mark_single_notification_read, name='mark_single_notification_read'),
 
-    # QR Attendance
+    # QR Attendance — replacement classes (existing)
     path('lecturer/qr/<int:request_id>/', views.lecturer_generate_qr, name='lecturer_generate_qr'),
     path('lecturer/qr/toggle/<int:session_id>/', views.lecturer_toggle_qr_session, name='lecturer_toggle_qr_session'),
+    # QR Attendance — regular timetable classes (new)
+    path('lecturer/schedule-qr/<int:schedule_id>/', views.lecturer_generate_schedule_qr, name='lecturer_generate_schedule_qr'),
+    # Attendance scan (handles both types)
     path('attendance/scan/<str:token>/', views.student_scan_qr, name='student_scan_qr'),
+    # Student in-app scanner
+    path('student/scan/', views.student_scan_qr_page, name='student_scan_qr_page'),
+    # Attendance reports
+    path('lecturer/attendance/report/', views.lecturer_attendance_report, name='lecturer_attendance_report'),
+    path('lecturer/attendance/session/<int:session_id>/', views.lecturer_attendance_session_detail, name='lecturer_attendance_session_detail'),
 
     # Chart data (JSON)
     path('admin-portal/chart-data/', views.admin_chart_data, name='admin_chart_data'),
