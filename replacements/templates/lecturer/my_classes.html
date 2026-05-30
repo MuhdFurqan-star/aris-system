@@ -3,185 +3,184 @@
 
 {% block extra_css %}
 <style>
-/* ── Semester section ──────────────────────────────────── */
-.sem-section { margin-bottom: 32px; }
-.sem-heading {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 16px; padding: 12px 16px;
-    background: var(--card-bg); border: 1px solid var(--border);
-    border-left: 4px solid var(--navy);
-    border-radius: var(--radius);
-}
-.sem-label { font-size: 14px; font-weight: 800; color: var(--navy); }
-.sem-count {
-    font-size: 11px; font-weight: 700; padding: 2px 10px;
-    background: #ebf0f8; color: var(--navy); border-radius: 20px;
-}
-.sem-timetable-btn {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 14px; border-radius: var(--radius);
-    font-size: 12px; font-weight: 700; text-decoration: none;
-    background: var(--navy); color: #fff; transition: background .15s;
-}
-.sem-timetable-btn:hover { background: #162e4a; color: #fff; }
-
-/* ── Subject cards grid ────────────────────────────────── */
-.subject-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-}
-
-/* ── Subject card ──────────────────────────────────────── */
-.subject-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    transition: box-shadow .2s, transform .15s;
-    display: flex; flex-direction: column;
-}
-.subject-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-
-.sc-header {
+/* ── Banner ────────────────────────────────────────────── */
+.mc-banner {
     background: linear-gradient(135deg, var(--navy) 0%, #2d5282 100%);
-    padding: 14px 16px;
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    border-radius: var(--radius-lg); padding: 20px 24px 18px;
+    color: #fff; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    margin-bottom: 20px;
 }
-.sc-code {
-    font-size: 10px; font-weight: 800; letter-spacing: .8px;
-    text-transform: uppercase; color: rgba(255,255,255,.7); margin-bottom: 3px;
+.mc-banner h1 { font-size: 20px; font-weight: 800; margin: 0 0 3px; }
+.mc-banner p  { font-size: 13px; opacity: .8; margin: 0; }
+.week-nav { display: flex; align-items: center; gap: 8px; }
+.week-nav a {
+    background: rgba(255,255,255,.15); color: #fff;
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 7px 14px; border-radius: var(--radius);
+    font-weight: 700; font-size: 13px; text-decoration: none;
+    transition: background .15s;
 }
-.sc-name {
-    font-size: 14px; font-weight: 700; color: #fff; line-height: 1.3;
-}
-.sc-credit {
-    background: rgba(255,255,255,.2); color: #fff;
-    font-size: 10px; font-weight: 700; padding: 3px 8px;
-    border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-top: 2px;
-}
+.week-nav a:hover { background: rgba(255,255,255,.28); color: #fff; }
+.week-label { color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; }
 
-.sc-body { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-
-.sc-info-row {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 12px; color: var(--text-2);
-}
-.sc-info-row i { color: var(--navy); width: 13px; font-size: 11px; flex-shrink: 0; }
-
-/* ── Schedule slots ────────────────────────────────────── */
-.sc-schedules { display: flex; flex-direction: column; gap: 6px; }
-.sc-sched-slot {
-    display: flex; align-items: center;
-    background: var(--page-bg); border: 1px solid var(--border);
-    border-radius: 8px; overflow: hidden;
-}
-.sc-sched-info {
-    flex: 1; display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
-}
-.sc-sched-day {
-    font-size: 10px; font-weight: 800; color: var(--navy);
-    text-transform: uppercase; letter-spacing: .4px;
-    background: #ebf0f8; padding: 3px 7px; border-radius: 5px;
-    white-space: nowrap;
-}
-.sc-sched-time {
-    font-size: 12px; font-weight: 600; color: var(--text-1);
-    font-family: monospace;
-}
-.sc-sched-venue {
-    font-size: 11px; color: var(--text-3); margin-left: auto;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px;
-}
-.sc-qr-btn {
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-    padding: 0 14px; height: 100%;
-    background: var(--navy); color: #fff;
-    font-size: 11px; font-weight: 700; text-decoration: none;
-    border-left: 1px solid rgba(0,0,0,.1);
-    transition: background .15s; white-space: nowrap; min-height: 38px;
-}
-.sc-qr-btn:hover { background: #276749; color: #fff; }
-.sc-qr-btn i { font-size: 13px; }
-
-.sc-no-schedule {
-    font-size: 11px; color: var(--text-3); font-style: italic;
-    padding: 8px 0; text-align: center;
-    border: 1px dashed var(--border); border-radius: 8px;
-}
-
-/* ── Card footer actions ───────────────────────────────── */
-.sc-footer {
-    padding: 10px 16px; border-top: 1px solid var(--border);
-    display: flex; gap: 8px; background: var(--page-bg);
-}
-.sc-btn {
-    flex: 1; padding: 7px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
-    text-decoration: none; text-align: center; display: flex;
-    align-items: center; justify-content: center; gap: 5px;
-    transition: all .15s;
-}
-.sc-btn-outline {
-    background: transparent; color: var(--navy);
-    border: 1.5px solid var(--border); color: var(--text-2);
-}
-.sc-btn-outline:hover { border-color: var(--navy); color: var(--navy); background: #ebf0f8; }
-.sc-btn-primary { background: var(--navy); color: #fff; border: none; }
-.sc-btn-primary:hover { background: #162e4a; color: #fff; }
-
-/* ── Upcoming replacements (bottom strip) ──────────────── */
-.repl-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px; margin-top: 4px;
-}
-.repl-card {
-    display: flex; gap: 12px; align-items: flex-start;
+/* ── Stats strip ────────────────────────────────────────── */
+.mc-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.mc-stat {
     background: var(--card-bg); border: 1px solid var(--border);
-    border-top: 3px solid #b7791f;
-    border-radius: var(--radius-lg); padding: 14px 16px;
-    transition: box-shadow .15s;
+    border-radius: var(--radius); padding: 12px 18px;
+    display: flex; align-items: center; gap: 10px; flex: 1; min-width: 140px;
 }
-.repl-card:hover { box-shadow: var(--shadow-sm); }
-.repl-date-block {
-    text-align: center; min-width: 48px;
-    background: #fef3c7; border-radius: 8px; padding: 6px 8px;
+.mc-stat-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: grid; place-items: center; font-size: 15px; flex-shrink: 0;
 }
-.repl-day  { font-size: 9px; font-weight: 800; color: #b7791f; text-transform: uppercase; }
-.repl-num  { font-size: 22px; font-weight: 900; color: #744210; line-height: 1; }
-.repl-mon  { font-size: 9px; font-weight: 700; color: #b7791f; }
-.repl-body { flex: 1; min-width: 0; }
-.repl-code { font-size: 11px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
-.repl-name { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 6px;
-             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.repl-meta-row { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
-.repl-meta-row i { color: var(--text-3); width: 11px; font-size: 10px; }
-.status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
-.sb-pending  { background: #fef3c7; color: #b7791f; border: 1px solid #fbd38d; }
-.sb-approved { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+.mc-stat-icon.blue   { background: #ebf0f8; color: var(--navy); }
+.mc-stat-icon.green  { background: #f0fff4; color: #276749; }
+.mc-stat-icon.amber  { background: #fef3c7; color: #b7791f; }
+.mc-stat-num   { font-size: 22px; font-weight: 800; color: var(--text-1); line-height: 1; }
+.mc-stat-label { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
-/* ── Section heading ───────────────────────────────────── */
-.section-title {
-    font-size: 13px; font-weight: 800; color: var(--text-2);
-    text-transform: uppercase; letter-spacing: .6px;
-    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+/* ── Timetable ──────────────────────────────────────────── */
+.tt-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.tt-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    min-width: 700px; background: var(--card-bg);
 }
-.section-title::after {
-    content: ''; flex: 1; height: 1px; background: var(--border);
+.tt-table thead th {
+    background: var(--navy); color: #fff;
+    padding: 14px 10px; font-size: 13px; font-weight: 700;
+    text-align: center; border-right: 1px solid rgba(255,255,255,.1);
+    position: sticky; top: 0; z-index: 2;
 }
+.tt-table thead th:first-child { width: 64px; font-size: 11px; letter-spacing: .4px; }
+.tt-table thead th.today-head { background: #b7791f; }
 
-/* ── Empty state ───────────────────────────────────────── */
-.empty-box {
-    text-align: center; padding: 40px 20px; color: var(--text-3);
-    background: var(--card-bg); border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
+.tt-time {
+    font-size: 11px; font-weight: 700; color: var(--text-3);
+    text-align: center; padding: 0 6px; vertical-align: top;
+    padding-top: 8px; border-right: 1px solid var(--border);
+    background: var(--page-bg); white-space: nowrap;
 }
-.empty-box i { font-size: 36px; opacity: .15; display: block; margin-bottom: 12px; color: var(--navy); }
+.tt-cell {
+    border: 1px solid var(--border); vertical-align: top;
+    padding: 4px; min-height: 48px; transition: background .15s;
+}
+.tt-cell.today-cell { background: #fffbeb; }
+.tt-cell.empty-cell { background: var(--card-bg); }
+
+/* ── Class cards inside cells ───────────────────────────── */
+.cc {
+    border-radius: 7px; padding: 8px 10px;
+    cursor: pointer; transition: filter .15s, transform .15s;
+    height: 100%; box-sizing: border-box; min-height: 52px;
+}
+.cc:hover { filter: brightness(1.12); transform: scale(1.02); }
+.cc.regular {
+    background: linear-gradient(135deg, var(--navy) 0%, #2d5282 100%);
+    color: #fff;
+}
+.cc.replacement {
+    background: linear-gradient(135deg, #744210 0%, #92400e 100%);
+    color: #fff; border: 1px solid #b7791f;
+}
+.cc-badge {
+    display: inline-block; font-size: 8px; font-weight: 800;
+    letter-spacing: .5px; text-transform: uppercase;
+    background: rgba(255,255,255,.25); color: #fff;
+    padding: 1px 5px; border-radius: 3px; margin-bottom: 4px;
+}
+.cc-code  { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 2px; }
+.cc-name  { font-size: 10px; color: rgba(255,255,255,.75); line-height: 1.3; margin-bottom: 4px; }
+.cc-time  {
+    font-size: 9px; font-weight: 700;
+    background: rgba(255,255,255,.2); color: #fff;
+    padding: 1px 5px; border-radius: 3px; display: inline-block;
+}
+.cc-venue { font-size: 9px; color: rgba(255,255,255,.6); margin-top: 3px; }
+
+/* ── Popup modal ────────────────────────────────────────── */
+.mc-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 16px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.mc-modal-backdrop.open { opacity: 1; pointer-events: all; }
+.mc-modal {
+    background: var(--card-bg); border-radius: var(--radius-lg);
+    width: 100%; max-width: 480px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    transform: translateY(16px); transition: transform .25s;
+}
+.mc-modal-backdrop.open .mc-modal { transform: translateY(0); }
+
+.mc-modal-head {
+    background: linear-gradient(135deg, var(--navy) 0%, #2d5282 100%);
+    padding: 18px 20px; color: #fff;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.mc-modal-code  { font-size: 10px; font-weight: 800; letter-spacing: .8px; opacity: .75; margin-bottom: 3px; text-transform: uppercase; }
+.mc-modal-name  { font-size: 17px; font-weight: 800; line-height: 1.25; }
+.mc-modal-sem   { font-size: 11px; opacity: .7; margin-top: 3px; }
+.mc-close {
+    background: rgba(255,255,255,.15); border: none; color: #fff;
+    width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; flex-shrink: 0; transition: background .15s;
+    display: grid; place-items: center;
+}
+.mc-close:hover { background: rgba(255,255,255,.3); }
+
+.mc-modal-body { padding: 18px 20px; }
+
+/* Info rows */
+.mc-info-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.mc-info-row:last-of-type { border-bottom: none; }
+.mc-info-row i { color: var(--navy); width: 15px; font-size: 13px; flex-shrink: 0; }
+.mc-info-label { color: var(--text-3); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; width: 80px; flex-shrink: 0; }
+.mc-info-val   { font-weight: 600; color: var(--text-1); }
+
+/* Quick stats row */
+.mc-quick-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin: 14px 0;
+}
+.mc-qs {
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 8px; text-align: center;
+}
+.mc-qs-num { font-size: 20px; font-weight: 800; color: var(--navy); line-height: 1; }
+.mc-qs-lbl { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+/* Action buttons */
+.mc-actions { display: flex; gap: 10px; margin-top: 16px; }
+.mc-action-btn {
+    flex: 1; padding: 11px 10px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 700; text-decoration: none;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: all .15s; border: none; cursor: pointer;
+}
+.mc-btn-qr      { background: var(--navy); color: #fff; }
+.mc-btn-qr:hover { background: #162e4a; color: #fff; }
+.mc-btn-replace { background: #f0fff4; color: #276749; border: 1.5px solid #c6f6d5; }
+.mc-btn-replace:hover { background: #276749; color: #fff; }
+.mc-btn-report  { background: var(--page-bg); color: var(--text-2); border: 1px solid var(--border); font-size: 11px; flex: none; padding: 11px 14px; }
+.mc-btn-report:hover { border-color: var(--navy); color: var(--navy); }
+
+/* ── Empty state ────────────────────────────────────────── */
+.empty-week {
+    text-align: center; padding: 60px 20px; color: var(--text-3);
+    grid-column: 1 / -1;
+}
+.empty-week i { font-size: 40px; opacity: .15; display: block; margin-bottom: 12px; }
 
 @media (max-width: 640px) {
-    .subject-cards { grid-template-columns: 1fr; }
-    .repl-strip { grid-template-columns: 1fr; }
+    .mc-stats { flex-direction: column; }
+    .mc-quick-stats { grid-template-columns: repeat(3,1fr); }
 }
 </style>
 {% endblock %}
@@ -189,169 +188,256 @@
 {% block content %}
 <div class="page-wrap">
 
-    <!-- Banner -->
-    <div class="page-banner mb-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <!-- Banner with week nav -->
+    <div class="mc-banner">
         <div>
-            <h1><i class="fas fa-chalkboard-teacher me-2" style="color:#b7791f;"></i>My Classes</h1>
-            <p>Subjects you teach — with schedules, QR attendance, and replacement requests.</p>
+            <h1><i class="fas fa-chalkboard-teacher me-2"></i>My Classes</h1>
+            <p>Your teaching schedule — click any class to manage QR attendance or request a replacement.</p>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="{% url 'lecturer_attendance_report' %}" class="btn-outline-academic">
-                <i class="fas fa-chart-bar me-1"></i>Attendance Report
-            </a>
-            <a href="{% url 'lecturer_create_request' %}" class="btn-primary-academic">
-                <i class="fas fa-plus me-1"></i>New Replacement
-            </a>
-            <a href="{% url 'lecturer_dashboard' %}" class="btn-outline-academic">
-                <i class="fas fa-arrow-left me-1"></i>Dashboard
-            </a>
-        </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="stat-grid mb-4" style="grid-template-columns: repeat(3,1fr);">
-        <div class="stat-card">
-            <div class="icon-wrap blue"><i class="fas fa-book-open"></i></div>
-            <div class="number">{{ my_subjects.count }}</div>
-            <div class="label">Subjects Teaching</div>
-        </div>
-        <div class="stat-card accent-gold">
-            <div class="icon-wrap gold"><i class="fas fa-users"></i></div>
-            <div class="number">{{ grouped|length }}</div>
-            <div class="label">Class Groups</div>
-        </div>
-        <div class="stat-card accent-green">
-            <div class="icon-wrap green"><i class="fas fa-calendar-check"></i></div>
-            <div class="number">{{ upcoming_replacements|length }}</div>
-            <div class="label">Upcoming Replacements</div>
+        <div class="week-nav">
+            <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
+            <span class="week-label">
+                {{ monday|date:"d M" }} – {{ week_days.4|date:"d M Y" }}
+            </span>
+            <a href="?week={{ week_offset|add:'1' }}"><i class="fas fa-chevron-right"></i></a>
+            {% if week_offset != 0 %}
+            <a href="?week=0" style="font-size:11px; padding:6px 10px;">Today</a>
+            {% endif %}
         </div>
     </div>
 
-    <!-- ── Subjects by semester ────────────────────── -->
-    {% if grouped %}
-        {% for semester, subjects in grouped %}
-        <div class="sem-section">
-
-            <!-- Semester header -->
-            <div class="sem-heading">
-                <i class="fas fa-layer-group" style="color:var(--navy); font-size:14px;"></i>
-                <span class="sem-label">Sem {{ semester.name }} &mdash; Class {{ semester.class_name }}</span>
-                <span class="sem-count">{{ subjects|length }} subject{{ subjects|length|pluralize }}</span>
-                <a href="{% url 'lecturer_class_timetable' semester.id %}" class="sem-timetable-btn">
-                    <i class="fas fa-calendar-alt"></i> View Class Timetable
-                </a>
+    <!-- Quick stats -->
+    <div class="mc-stats">
+        <div class="mc-stat">
+            <div class="mc-stat-icon blue"><i class="fas fa-book-open"></i></div>
+            <div>
+                <div class="mc-stat-num">{{ total_subjects }}</div>
+                <div class="mc-stat-label">Subjects Teaching</div>
             </div>
+        </div>
+        <div class="mc-stat">
+            <div class="mc-stat-icon green"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="mc-stat-num">{{ total_enrolled }}</div>
+                <div class="mc-stat-label">Total Enrolled Students</div>
+            </div>
+        </div>
+        <div class="mc-stat">
+            <div class="mc-stat-icon amber"><i class="fas fa-qrcode"></i></div>
+            <div>
+                <div class="mc-stat-num">{{ total_sessions }}</div>
+                <div class="mc-stat-label">QR Sessions Opened</div>
+            </div>
+        </div>
+    </div>
 
-            <!-- Subject cards -->
-            <div class="subject-cards">
-                {% for subj in subjects %}
-                <div class="subject-card">
+    <!-- Timetable -->
+    <div class="tt-wrap">
+        <table class="tt-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    {% for day in week_days %}
+                    <th {% if day == today %}class="today-head"{% endif %}>
+                        <div style="font-size:11px; opacity:.75; font-weight:600;">{{ day|date:"D" }}</div>
+                        <div style="font-size:20px; font-weight:800; line-height:1.1;">{{ day|date:"d" }}</div>
+                        <div style="font-size:10px; opacity:.7;">{{ day|date:"M Y" }}</div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for cell in row %}
+                    {% if cell.type == 'time' %}
+                    <td class="tt-time">{{ cell.label }}</td>
 
-                    <!-- Card header (navy gradient) -->
-                    <div class="sc-header">
-                        <div style="min-width:0;">
-                            <div class="sc-code">{{ subj.subject_code }}</div>
-                            <div class="sc-name">{{ subj.subject_name }}</div>
+                    {% elif cell.type == 'cell' %}
+                    <td class="tt-cell {% if cell.is_today %}today-cell{% endif %} {% if cell.is_empty %}empty-cell{% endif %}"
+                        {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}>
+
+                        {% for item in cell.items %}
+                        <div class="cc {{ item.type }}"
+                             data-code="{{ item.code }}"
+                             data-name="{{ item.name }}"
+                             data-sem="{{ item.semester }}"
+                             data-date="{{ item.cell_date }}"
+                             data-start="{{ item.start }}"
+                             data-end="{{ item.end }}"
+                             data-venue="{{ item.venue }}"
+                             data-type="{{ item.type }}"
+                             data-subject-id="{{ item.subject_id }}"
+                             data-schedule-id="{{ item.schedule_id|default:'' }}"
+                             data-req-id="{{ item.req_id|default:'' }}"
+                             style="cursor:pointer;"
+                             >
+                            {% if item.type == 'replacement' %}
+                            <div class="cc-badge">Replacement</div>
+                            {% endif %}
+                            <div class="cc-code">{{ item.code }}</div>
+                            <div class="cc-name">{{ item.name|truncatechars:36 }}</div>
+                            <div class="cc-time">{{ item.start }} – {{ item.end }}</div>
+                            {% if item.venue and item.venue != '—' %}
+                            <div class="cc-venue"><i class="fas fa-map-marker-alt" style="font-size:8px;"></i> {{ item.venue }}</div>
+                            {% endif %}
                         </div>
-                        <span class="sc-credit">{{ subj.credit_hours }} cr</span>
-                    </div>
+                        {% endfor %}
 
-                    <!-- Card body -->
-                    <div class="sc-body">
-                        <div class="sc-info-row">
-                            <i class="fas fa-clock"></i>
-                            {{ subj.contact_hours_per_week }}h/week &nbsp;&middot;&nbsp; {{ subj.total_weeks }} weeks
-                        </div>
-
-                        <!-- Schedule slots with QR -->
-                        {% if subj.schedules.all %}
-                        <div class="sc-schedules">
-                            {% for sched in subj.schedules.all %}
-                            <div class="sc-sched-slot">
-                                <div class="sc-sched-info">
-                                    <span class="sc-sched-day">{{ sched.get_day_of_week_display }}</span>
-                                    <span class="sc-sched-time">{{ sched.start_time|time:"H:i" }} – {{ sched.end_time|time:"H:i" }}</span>
-                                    {% if sched.venue %}
-                                    <span class="sc-sched-venue">
-                                        <i class="fas fa-map-marker-alt" style="font-size:9px;"></i>
-                                        {{ sched.venue.venue_name }}
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                <a href="{% url 'lecturer_generate_schedule_qr' sched.id %}?date={{ today|date:'Y-m-d' }}"
-                                   class="sc-qr-btn" title="Generate QR attendance for today">
-                                    <i class="fas fa-qrcode"></i> QR
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="sc-no-schedule">
-                            <i class="fas fa-calendar-times" style="margin-right:5px;"></i>No schedule assigned yet
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Card footer -->
-                    <div class="sc-footer">
-                        <a href="{% url 'lecturer_class_timetable' semester.id %}" class="sc-btn sc-btn-outline">
-                            <i class="fas fa-calendar-week"></i> Timetable
-                        </a>
-                        <a href="{% url 'lecturer_create_request' %}" class="sc-btn sc-btn-primary">
-                            <i class="fas fa-exchange-alt"></i> Replace
-                        </a>
-                    </div>
-
-                </div>
+                    </td>
+                    {% endif %}
+                    {# skip cells covered by rowspan #}
+                    {% endfor %}
+                </tr>
                 {% endfor %}
-            </div>
-
-        </div>
-        {% endfor %}
-    {% else %}
-    <div class="empty-box">
-        <i class="fas fa-book-open"></i>
-        <div style="font-size:14px; font-weight:700; color:var(--text-2); margin-bottom:6px;">No Subjects Assigned</div>
-        <p style="font-size:13px;">You don't have any subjects assigned yet. Contact the administrator.</p>
+            </tbody>
+        </table>
     </div>
-    {% endif %}
 
-    <!-- ── Upcoming Replacements ───────────────────── -->
-    {% if upcoming_replacements %}
-    <div class="mt-4">
-        <div class="section-title">
-            <i class="fas fa-exchange-alt" style="color:#b7791f;"></i> Upcoming Replacements
-        </div>
-        <div class="repl-strip">
-            {% for req in upcoming_replacements %}
-            <div class="repl-card">
-                <div class="repl-date-block">
-                    <div class="repl-day">{{ req.replacement_date|date:"D" }}</div>
-                    <div class="repl-num">{{ req.replacement_date|date:"d" }}</div>
-                    <div class="repl-mon">{{ req.replacement_date|date:"M" }}</div>
-                </div>
-                <div class="repl-body">
-                    <div class="repl-code">{{ req.subject.subject_code }}</div>
-                    <div class="repl-name">{{ req.subject.subject_name }}</div>
-                    <div class="repl-meta-row"><i class="fas fa-clock"></i>{{ req.replacement_time_slot }}</div>
-                    <div class="repl-meta-row"><i class="fas fa-map-marker-alt"></i>{{ req.venue.venue_name }}</div>
-                    <div class="repl-meta-row">
-                        <i class="fas fa-tag"></i>
-                        <span class="status-badge {% if req.status == 'approved' %}sb-approved{% else %}sb-pending{% endif %}">
-                            {{ req.status }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        <div style="margin-top:12px;">
-            <a href="{% url 'lecturer_view_requests' %}" class="btn-outline-academic">
-                <i class="fas fa-list me-1"></i> View All Requests
-            </a>
-        </div>
+    {% if total_subjects == 0 %}
+    <div class="card-academic mt-4" style="text-align:center; padding:48px 20px;">
+        <i class="fas fa-chalkboard" style="font-size:40px; opacity:.15; display:block; margin-bottom:14px; color:var(--navy);"></i>
+        <div style="font-size:15px; font-weight:700; color:var(--text-2); margin-bottom:6px;">No classes this week</div>
+        <p style="font-size:13px; color:var(--text-3);">You have no subjects or replacement classes scheduled for this week.</p>
     </div>
     {% endif %}
 
 </div>
+
+<!-- ── Popup modal ──────────────────────────────────────── -->
+<div class="mc-modal-backdrop" id="mcBackdrop" onclick="closePopupOutside(event)">
+    <div class="mc-modal" id="mcModal">
+        <div class="mc-modal-head">
+            <div>
+                <div class="mc-modal-code" id="popCode"></div>
+                <div class="mc-modal-name" id="popName"></div>
+                <div class="mc-modal-sem"  id="popSem"></div>
+            </div>
+            <button class="mc-close" onclick="closePopup()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mc-modal-body">
+            <!-- Class details -->
+            <div id="popDetails">
+                <div class="mc-info-row">
+                    <i class="fas fa-calendar-day"></i>
+                    <span class="mc-info-label">Date</span>
+                    <span class="mc-info-val" id="popDate"></span>
+                </div>
+                <div class="mc-info-row">
+                    <i class="fas fa-clock"></i>
+                    <span class="mc-info-label">Time</span>
+                    <span class="mc-info-val" id="popTime"></span>
+                </div>
+                <div class="mc-info-row">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span class="mc-info-label">Venue</span>
+                    <span class="mc-info-val" id="popVenue"></span>
+                </div>
+            </div>
+
+            <!-- Quick stats -->
+            <div class="mc-quick-stats">
+                <div class="mc-qs">
+                    <div class="mc-qs-num" id="popEnrolled">—</div>
+                    <div class="mc-qs-lbl">Enrolled</div>
+                </div>
+                <div class="mc-qs">
+                    <div class="mc-qs-num" id="popSessions">—</div>
+                    <div class="mc-qs-lbl">QR Sessions</div>
+                </div>
+                <div class="mc-qs">
+                    <div class="mc-qs-num" id="popUpcomingRepl">—</div>
+                    <div class="mc-qs-lbl">Pending Repl.</div>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="mc-actions">
+                <a id="popQrBtn" href="#" class="mc-action-btn mc-btn-qr">
+                    <i class="fas fa-qrcode"></i> Generate QR
+                </a>
+                <a id="popReplBtn" href="{% url 'lecturer_create_request' %}" class="mc-action-btn mc-btn-replace">
+                    <i class="fas fa-exchange-alt"></i> Replace
+                </a>
+                <a href="{% url 'lecturer_attendance_report' %}" class="mc-action-btn mc-btn-report" title="Attendance Report">
+                    <i class="fas fa-chart-bar"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const subjectStats = {{ subject_stats_json|safe }};
+
+function openPopup(item) {
+    // item may arrive as a JSON string (from data-item) or already an object
+    if (typeof item === 'string') { try { item = JSON.parse(item); } catch(e) { return; } }
+
+    const stats = subjectStats[item.subject_id] || {};
+
+    document.getElementById('popCode').textContent    = item.code || '';
+    document.getElementById('popName').textContent    = item.name || '';
+    document.getElementById('popSem').textContent     = item.semester || '';
+    document.getElementById('popDate').textContent    = fmtDate(item.cell_date);
+    document.getElementById('popTime').textContent    = (item.start || '') + ' – ' + (item.end || '');
+    document.getElementById('popVenue').textContent   = item.venue || '—';
+    document.getElementById('popEnrolled').textContent    = stats.enrolled   ?? '—';
+    document.getElementById('popSessions').textContent    = stats.total_sessions ?? '—';
+    document.getElementById('popUpcomingRepl').textContent = stats.upcoming_repl ?? '—';
+
+    // QR link: for regular sessions use schedule_id + date; for replacements use req_id
+    const qrBtn = document.getElementById('popQrBtn');
+    if (item.type === 'regular' && item.schedule_id) {
+        qrBtn.href = `/lecturer/schedule-qr/${item.schedule_id}/?date=${item.cell_date}`;
+        qrBtn.style.display = 'flex';
+    } else if (item.type === 'replacement' && item.req_id) {
+        qrBtn.href = `/lecturer/qr/${item.req_id}/`;
+        qrBtn.style.display = 'flex';
+    } else {
+        qrBtn.style.display = 'none';
+    }
+
+    document.getElementById('mcBackdrop').classList.add('open');
+}
+
+function closePopup() {
+    document.getElementById('mcBackdrop').classList.remove('open');
+}
+
+function closePopupOutside(e) {
+    if (e.target === document.getElementById('mcBackdrop')) closePopup();
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePopup();
+});
+
+// Wire up cards via data-* attributes
+document.querySelectorAll('.cc[data-code]').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const d = this.dataset;
+        openPopup({
+            code:        d.code,
+            name:        d.name,
+            semester:    d.sem,
+            cell_date:   d.date,
+            start:       d.start,
+            end:         d.end,
+            venue:       d.venue,
+            type:        d.type,
+            subject_id:  d.subjectId,
+            schedule_id: d.scheduleId || null,
+            req_id:      d.reqId || null,
+        });
+    });
+});
+
+function fmtDate(str) {
+    if (!str) return '—';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('en-MY', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+</script>
 {% endblock %}

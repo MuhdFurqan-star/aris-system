@@ -2788,45 +2788,176 @@ def timetable_view(request):
 @login_required
 def lecturer_my_classes(request):
     """
-    Shows all subjects assigned to the lecturer, grouped by semester,
-    plus upcoming replacement classes summary.
+    Weekly timetable of only the lecturer's own subjects.
+    Clicking a cell opens a popup with subject info, QR, Replace, and quick stats.
     """
+    import json as _json
     if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
         messages.error(request, 'Access denied.')
         return redirect('dashboard')
 
-    today = tz.localdate()
+    HOUR_SLOTS = list(range(8, 19))
+    SLOT_KEYS  = [f"{h:02d}:00" for h in HOUR_SLOTS]
 
-    # All subjects this lecturer teaches
+    week_offset = int(request.GET.get('week', 0))
+    today       = tz.localdate()
+    monday      = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+    week_days   = [monday + timedelta(days=i) for i in range(5)]
+
+    # All schedules for subjects this lecturer teaches
+    my_schedules = (
+        ClassSchedule.objects
+        .filter(subject__lecturer=request.user)
+        .select_related('subject', 'subject__semester', 'venue')
+        .order_by('day_of_week', 'start_time')
+    )
+
+    # Approved replacements for this lecturer in the selected week
+    repl_qs = (
+        ClassReplacementRequest.objects
+        .filter(
+            lecturer=request.user,
+            status='approved',
+            replacement_date__in=week_days,
+        )
+        .select_related('subject', 'subject__semester', 'venue')
+    )
+
+    # Build per-subject stats for popup
+    my_subject_ids = list(my_schedules.values_list('subject_id', flat=True).distinct())
     my_subjects = (
         Subject.objects
-        .filter(lecturer=request.user)
+        .filter(id__in=my_subject_ids)
         .select_related('semester')
-        .prefetch_related('schedules')
-        .order_by('semester__name', 'semester__class_name', 'subject_code')
+        .prefetch_related('schedules', 'schedules__venue')
     )
 
-    # Group by semester
-    from collections import defaultdict
-    sem_map = defaultdict(list)
+    subject_stats = {}
     for subj in my_subjects:
-        sem_map[subj.semester].append(subj)
-    grouped = sorted(sem_map.items(), key=lambda x: (x[0].name, x[0].class_name))
+        enrolled_count = User.objects.filter(
+            userprofile__user_type='student',
+            enrollments__semester=subj.semester
+        ).distinct().count()
 
-    # Upcoming replacement classes (pending + approved, date >= today)
-    upcoming_replacements = (
-        ClassReplacementRequest.objects
-        .filter(lecturer=request.user, replacement_date__gte=today)
-        .exclude(status='rejected')
-        .select_related('subject', 'subject__semester', 'venue')
-        .order_by('replacement_date')[:10]
-    )
+        all_sessions = list(AttendanceSession.objects.filter(
+            session_type='regular', schedule__subject=subj
+        )) + list(AttendanceSession.objects.filter(
+            session_type='replacement', replacement_request__subject=subj
+        ))
+        total_sessions = len(all_sessions)
+        total_present  = AttendanceRecord.objects.filter(
+            session__in=all_sessions
+        ).values('student').distinct().count() if all_sessions else 0
+
+        upcoming_repl = ClassReplacementRequest.objects.filter(
+            lecturer=request.user, subject=subj,
+            replacement_date__gte=today
+        ).exclude(status='rejected').count()
+
+        subject_stats[subj.id] = {
+            'id':              subj.id,
+            'code':            subj.subject_code,
+            'name':            subj.subject_name,
+            'semester':        f"Sem {subj.semester.name} — Class {subj.semester.class_name}",
+            'credits':         subj.credit_hours,
+            'enrolled':        enrolled_count,
+            'total_sessions':  total_sessions,
+            'total_present':   total_present,
+            'upcoming_repl':   upcoming_repl,
+        }
+
+    # Build timetable grid
+    grid = {k: {d: [] for d in week_days} for k in SLOT_KEYS}
+    skip = set()
+
+    def _add(sk, day, item, dur):
+        if sk not in grid or day not in grid[sk]:
+            return
+        grid[sk][day].append({'duration': dur, **item})
+        sh = int(sk[:2])
+        for dh in range(1, dur):
+            nk = f"{sh + dh:02d}:00"
+            if nk in grid:
+                skip.add((nk, day.strftime('%Y-%m-%d')))
+
+    for sched in my_schedules:
+        if sched.day_of_week > 4:
+            continue
+        day = week_days[sched.day_of_week]
+        sk  = f"{sched.start_time.hour:02d}:00"
+        dur = max(1, sched.end_time.hour - sched.start_time.hour)
+        stats = subject_stats.get(sched.subject_id, {})
+        _add(sk, day, {
+            'type':        'regular',
+            'schedule_id': sched.id,
+            'subject_id':  sched.subject_id,
+            'code':        sched.subject.subject_code,
+            'name':        sched.subject.subject_name,
+            'semester':    f"Sem {sched.subject.semester.name} — Class {sched.subject.semester.class_name}",
+            'start':       sched.start_time.strftime('%H:%M'),
+            'end':         sched.end_time.strftime('%H:%M'),
+            'venue':       sched.venue.venue_name if sched.venue else '—',
+            'cell_date':   day.strftime('%Y-%m-%d'),
+            'stats':       stats,
+        }, dur)
+
+    for r in repl_qs:
+        import re as _re
+        m = _re.match(r'(\d{1,2}):', r.replacement_time_slot.strip())
+        sh  = int(m.group(1)) if m else 8
+        m2  = _re.match(r'\d{1,2}:.*?[-–]\s*(\d{1,2}):', r.replacement_time_slot.strip())
+        eh  = int(m2.group(1)) if m2 else sh + 2
+        dur = max(1, eh - sh)
+        sk  = f"{sh:02d}:00"
+        stats = subject_stats.get(r.subject_id, {})
+        _add(sk, r.replacement_date, {
+            'type':       'replacement',
+            'req_id':     r.id,
+            'subject_id': r.subject_id,
+            'code':       r.subject.subject_code,
+            'name':       r.subject.subject_name,
+            'semester':   f"Sem {r.subject.semester.name} — Class {r.subject.semester.class_name}",
+            'start':      f"{sh:02d}:00",
+            'end':        f"{eh:02d}:00",
+            'venue':      r.venue.venue_name,
+            'cell_date':  r.replacement_date.strftime('%Y-%m-%d'),
+            'stats':      stats,
+        }, dur)
+
+    rows = []
+    for sk in SLOT_KEYS:
+        row = [{'type': 'time', 'label': sk}]
+        for day in week_days:
+            day_str = day.strftime('%Y-%m-%d')
+            if (sk, day_str) in skip:
+                row.append({'type': 'skip'})
+            else:
+                items   = grid[sk][day]
+                rowspan = max((it['duration'] for it in items), default=1)
+                row.append({
+                    'type':     'cell',
+                    'items':    items,
+                    'rowspan':  rowspan,
+                    'is_today': day == today,
+                    'is_empty': len(items) == 0,
+                })
+        rows.append(row)
+
+    # Stats summary
+    total_subjects   = len(my_subject_ids)
+    total_enrolled   = sum(s['enrolled'] for s in subject_stats.values())
+    total_sessions   = sum(s['total_sessions'] for s in subject_stats.values())
 
     return render(request, 'lecturer/my_classes.html', {
-        'grouped':              grouped,
-        'my_subjects':          my_subjects,
-        'upcoming_replacements': upcoming_replacements,
-        'today':                today,
+        'rows':           rows,
+        'week_days':      week_days,
+        'today':          today,
+        'monday':         monday,
+        'week_offset':    week_offset,
+        'total_subjects': total_subjects,
+        'total_enrolled': total_enrolled,
+        'total_sessions': total_sessions,
+        'subject_stats_json': _json.dumps(subject_stats),
     })
 
 
