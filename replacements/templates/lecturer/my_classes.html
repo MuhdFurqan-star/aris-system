@@ -193,6 +193,9 @@
         <div>
             <h1><i class="fas fa-chalkboard-teacher me-2"></i>My Classes</h1>
             <p>Your teaching schedule — click any class to manage QR attendance or request a replacement.</p>
+            <a href="{% url 'lecturer_dashboard' %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; font-weight:600; color:rgba(255,255,255,.75); text-decoration:none; transition:color .15s;">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
         </div>
         <div class="week-nav">
             <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
