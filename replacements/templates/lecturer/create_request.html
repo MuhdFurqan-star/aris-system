@@ -25,9 +25,7 @@
 .step.active .step-num { background: rgba(255,255,255,.3); color: white; }
 .step.done   .step-num { background: #276749; color: white; }
 
-.sec-divider {
-    height: 1px; background: var(--border); margin: 0;
-}
+.sec-divider { height: 1px; background: var(--border); margin: 0; }
 .sec-header {
     display: flex; align-items: center; gap: 12px;
     padding: 20px 24px 0; margin-bottom: 18px;
@@ -62,7 +60,15 @@
 .f-textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
 .f-hint { font-size: 11px; color: var(--text-3); margin-top: 2px; font-family: monospace; }
 
-/* ── Venue search UI ─────────────────────────────── */
+/* Manual time entry */
+.manual-time-wrap {
+    margin-top: 6px; display: none;
+    animation: fadeIn .2s ease;
+}
+.manual-time-wrap.show { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+/* Venue search UI */
 .venue-prompt {
     background: var(--page-bg); border: 1px dashed var(--border);
     border-radius: var(--radius); padding: 12px 16px;
@@ -115,9 +121,7 @@
 }
 .vc-pick:hover { background: #162e4a; }
 .venue-card-opt.picked .vc-pick { background: #276749; }
-.venue-selected-wrap {
-    margin-bottom: 8px;
-}
+.venue-selected-wrap { margin-bottom: 8px; }
 .venue-selected-card {
     display: flex; align-items: center; gap: 10px;
     background: #f0fff4; border: 1.5px solid #68d391;
@@ -134,8 +138,13 @@
     text-align: center; padding: 24px 16px; font-size: 13px; color: var(--text-3);
     background: var(--page-bg); border: 1px dashed var(--border); border-radius: var(--radius);
 }
+/* Venue loading skeleton */
+.venue-loading {
+    display: none; text-align: center; padding: 18px 16px;
+    font-size: 13px; color: var(--text-3);
+}
+.venue-loading.show { display: block; }
 
-/* ── AI Suggestion area ──────────────────────────── */
 /* AI Suggestion area */
 .ai-trigger-wrap { padding: 0 24px 18px; }
 .ai-btn {
@@ -175,10 +184,11 @@
 .ai-card {
     background: var(--card-bg); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 12px 14px; cursor: pointer;
-    transition: all .2s; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    transition: all .2s;
 }
 .ai-card:hover { border-color: var(--navy); box-shadow: var(--shadow-sm); }
 .ai-card.selected { border-color: #276749; background: #f0fff4; }
+.ai-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .ai-card-date  { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
 .ai-card-date span { color: var(--text-3); font-weight: 400; }
 .ai-card-venue { font-size: 12px; color: var(--navy); margin-bottom: 3px; }
@@ -189,6 +199,23 @@
 .conf-high   { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
 .conf-medium { background: #fef3c7; color: #b7791f; border: 1px solid #fbd38d; }
 .conf-low    { background: var(--page-bg); color: var(--text-3); border: 1px solid var(--border); }
+/* Alt venue row inside AI card */
+.ai-alt-venues {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    display: none;
+}
+.ai-alt-venues.show { display: block; }
+.ai-alt-title { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.ai-alt-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-alt-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 10px;
+    background: var(--page-bg); border: 1px solid var(--border);
+    border-radius: 5px; cursor: pointer; color: var(--text-2);
+    transition: all .15s; white-space: nowrap;
+}
+.ai-alt-btn:hover { border-color: var(--navy); color: var(--navy); background: #ebf0f8; }
+.ai-alt-btn.picked { border-color: #276749; color: #276749; background: #f0fff4; }
 .use-btn {
     font-size: 12px; font-weight: 600; padding: 6px 12px;
     background: var(--navy); color: white; border: none;
@@ -264,7 +291,7 @@
         <form method="POST" id="replacementForm">
             {% csrf_token %}
 
-            <!-- Section 1: Subject Information -->
+            <!-- ── Section 1: Subject Information ── -->
             <div class="sec-header" style="padding-top:22px;">
                 <div class="sec-icon blue"><i class="fas fa-book"></i></div>
                 <div>
@@ -293,11 +320,47 @@
                         </div>
                         <div class="f-group">
                             <label class="f-label">Original Time Slot <span class="req">*</span></label>
-                            <input type="text" name="original_time_slot" class="f-input"
-                                   placeholder="e.g. 09:15-11:15"
-                                   pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
-                                   title="Format: HH:MM-HH:MM" required>
-                            <span class="f-hint">Format: HH:MM-HH:MM</span>
+                            <select name="original_time_slot" id="id_original_time_slot" class="f-select" required>
+                                <option value="">— Select time slot —</option>
+                                <option value="08:00-09:00">08:00 – 09:00</option>
+                                <option value="08:00-10:00">08:00 – 10:00</option>
+                                <option value="08:30-09:30">08:30 – 09:30</option>
+                                <option value="08:30-10:30">08:30 – 10:30</option>
+                                <option value="09:00-10:00">09:00 – 10:00</option>
+                                <option value="09:00-11:00">09:00 – 11:00</option>
+                                <option value="09:30-10:30">09:30 – 10:30</option>
+                                <option value="09:30-11:30">09:30 – 11:30</option>
+                                <option value="10:00-11:00">10:00 – 11:00</option>
+                                <option value="10:00-12:00">10:00 – 12:00</option>
+                                <option value="10:30-11:30">10:30 – 11:30</option>
+                                <option value="10:30-12:30">10:30 – 12:30</option>
+                                <option value="11:00-12:00">11:00 – 12:00</option>
+                                <option value="11:00-13:00">11:00 – 13:00</option>
+                                <option value="11:30-12:30">11:30 – 12:30</option>
+                                <option value="11:30-13:30">11:30 – 13:30</option>
+                                <option value="12:00-13:00">12:00 – 13:00</option>
+                                <option value="12:00-14:00">12:00 – 14:00</option>
+                                <option value="13:00-14:00">13:00 – 14:00</option>
+                                <option value="13:00-15:00">13:00 – 15:00</option>
+                                <option value="14:00-15:00">14:00 – 15:00</option>
+                                <option value="14:00-16:00">14:00 – 16:00</option>
+                                <option value="14:30-16:30">14:30 – 16:30</option>
+                                <option value="15:00-16:00">15:00 – 16:00</option>
+                                <option value="15:00-17:00">15:00 – 17:00</option>
+                                <option value="16:00-17:00">16:00 – 17:00</option>
+                                <option value="16:00-18:00">16:00 – 18:00</option>
+                                <option value="17:00-18:00">17:00 – 18:00</option>
+                                <option value="17:00-19:00">17:00 – 19:00</option>
+                                <option value="__manual__">✏️ Enter manually…</option>
+                            </select>
+                            <!-- Manual entry fallback for original time -->
+                            <div class="manual-time-wrap" id="orig-manual-wrap">
+                                <input type="text" id="id_original_time_manual" class="f-input"
+                                       placeholder="e.g. 07:30-09:30"
+                                       pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                                       title="Format: HH:MM-HH:MM">
+                                <span class="f-hint">Format: HH:MM-HH:MM (24-hour)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -305,7 +368,7 @@
 
             <div class="sec-divider"></div>
 
-            <!-- Section 2: Replacement Details -->
+            <!-- ── Section 2: Replacement Details ── -->
             <div class="sec-header" style="padding-top:20px;">
                 <div class="sec-icon green"><i class="fas fa-calendar-check"></i></div>
                 <div>
@@ -329,7 +392,7 @@
                 <div class="ai-panel-head">
                     <div>
                         <div class="ai-panel-title"><i class="fas fa-lightbulb me-1"></i>Smart Slot Suggestions</div>
-                        <div class="ai-panel-sub">Based on your replacement history &amp; venue availability</div>
+                        <div class="ai-panel-sub">Based on your replacement history &amp; venue availability — click a suggestion to apply it</div>
                     </div>
                     <div class="ai-badge" id="aiResultCount">3 suggestions</div>
                 </div>
@@ -382,9 +445,19 @@
                                 <option value="16:00-18:00">16:00 – 18:00</option>
                                 <option value="17:00-18:00">17:00 – 18:00</option>
                                 <option value="17:00-19:00">17:00 – 19:00</option>
+                                <option value="__manual__">✏️ Enter manually…</option>
                             </select>
+                            <!-- Manual entry fallback for replacement time -->
+                            <div class="manual-time-wrap" id="repl-manual-wrap">
+                                <input type="text" id="id_replacement_time_manual" class="f-input"
+                                       placeholder="e.g. 07:30-09:30"
+                                       pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                                       title="Format: HH:MM-HH:MM">
+                                <span class="f-hint">Format: HH:MM-HH:MM (24-hour)</span>
+                            </div>
                         </div>
                     </div>
+
                     <!-- ── Dynamic venue search ── -->
                     <div class="f-group" id="venue-section">
                         <label class="f-label">Venue <span class="req">*</span></label>
@@ -393,7 +466,7 @@
                         <!-- Prompt (shown until date+time chosen) -->
                         <div id="venue-prompt" class="venue-prompt">
                             <i class="fas fa-info-circle me-1"></i>
-                            Select a <strong>replacement date</strong> and <strong>time slot</strong> above to search for available venues.
+                            Select a <strong>replacement date</strong> and <strong>time slot</strong> above — available venues will load automatically.
                         </div>
 
                         <!-- Search controls -->
@@ -418,11 +491,17 @@
                                         <option value="50">50+</option>
                                     </select>
                                 </div>
-                                <!-- Search button -->
+                                <!-- Refresh button -->
                                 <button type="button" id="venueSearchBtn" class="venue-search-btn">
-                                    <i class="fas fa-search me-1"></i>Find Available Venues
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh
                                     <div class="spinner" id="venueSpinner" style="border-color:rgba(255,255,255,.3); border-top-color:white;"></div>
                                 </button>
+                            </div>
+
+                            <!-- Loading indicator -->
+                            <div class="venue-loading" id="venue-loading">
+                                <div class="spinner" style="display:inline-block; margin-right:8px;"></div>
+                                Finding available venues…
                             </div>
 
                             <!-- Selected venue display -->
@@ -445,7 +524,7 @@
                             <!-- No results -->
                             <div id="venue-no-results" style="display:none;" class="venue-no-results">
                                 <i class="fas fa-calendar-times" style="font-size:28px; opacity:.2; display:block; margin-bottom:8px;"></i>
-                                No venues are available for the selected date, time, type, and capacity.
+                                No venues available for the selected date, time, type, and capacity.
                             </div>
                         </div>
                     </div>
@@ -491,105 +570,202 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const originalDateEl  = document.getElementById('id_original_date');
-    const replaceDateEl   = document.getElementById('id_replacement_date');
-    const timeSlotEl      = document.getElementById('id_replacement_time_slot');
-    const aiBtn           = document.getElementById('aiBtn');
-    const aiBtnText       = document.getElementById('aiBtnText');
-    const aiSpinner       = document.getElementById('aiSpinner');
-    const aiPanel         = document.getElementById('aiPanel');
-    const aiCards         = document.getElementById('aiCards');
-    const aiResultCount   = document.getElementById('aiResultCount');
-    const conflictAlert   = document.getElementById('conflictAlert');
-    const conflictMsg     = document.getElementById('conflictMsg');
-    const submitBtn       = document.getElementById('submitBtn');
-    const submitText      = document.getElementById('submitText');
-    const submitSpinner   = document.getElementById('submitSpinner');
+
+    /* ── Element refs ─────────────────────────────────────── */
+    const originalDateEl   = document.getElementById('id_original_date');
+    const replaceDateEl    = document.getElementById('id_replacement_date');
+    const timeSlotEl       = document.getElementById('id_replacement_time_slot');
+    const origTimeSlotEl   = document.getElementById('id_original_time_slot');
+    const origManualWrap   = document.getElementById('orig-manual-wrap');
+    const origManualInput  = document.getElementById('id_original_time_manual');
+    const replManualWrap   = document.getElementById('repl-manual-wrap');
+    const replManualInput  = document.getElementById('id_replacement_time_manual');
+
+    const aiBtn            = document.getElementById('aiBtn');
+    const aiBtnText        = document.getElementById('aiBtnText');
+    const aiSpinner        = document.getElementById('aiSpinner');
+    const aiPanel          = document.getElementById('aiPanel');
+    const aiCards          = document.getElementById('aiCards');
+    const aiResultCount    = document.getElementById('aiResultCount');
+    const conflictAlert    = document.getElementById('conflictAlert');
+    const conflictMsg      = document.getElementById('conflictMsg');
+    const submitBtn        = document.getElementById('submitBtn');
+    const submitText       = document.getElementById('submitText');
+    const submitSpinner    = document.getElementById('submitSpinner');
+
+    const venueIdEl        = document.getElementById('id_venue');
+    const venuePrompt      = document.getElementById('venue-prompt');
+    const venueControls    = document.getElementById('venue-search-controls');
+    const venueSearchBtn   = document.getElementById('venueSearchBtn');
+    const venueSpinner     = document.getElementById('venueSpinner');
+    const venueLoadingEl   = document.getElementById('venue-loading');
+    const venueResults     = document.getElementById('venue-results');
+    const venueNoResults   = document.getElementById('venue-no-results');
+    const venueSelected    = document.getElementById('venue-selected');
+    const venueSelName     = document.getElementById('venue-sel-name');
+    const venueSelMeta     = document.getElementById('venue-sel-meta');
+    const venueChangeBtn   = document.getElementById('venue-change-btn');
+    const minCapEl         = document.getElementById('id_min_cap');
+    let   activeVenueType  = '';
 
     const today = new Date().toISOString().split('T')[0];
     if (replaceDateEl) replaceDateEl.setAttribute('min', today);
 
-    /* ── Venue search state ──────────────────── */
-    const venueIdEl      = document.getElementById('id_venue');
-    const venuePrompt    = document.getElementById('venue-prompt');
-    const venueControls  = document.getElementById('venue-search-controls');
-    const venueSearchBtn = document.getElementById('venueSearchBtn');
-    const venueSpinner   = document.getElementById('venueSpinner');
-    const venueResults   = document.getElementById('venue-results');
-    const venueNoResults = document.getElementById('venue-no-results');
-    const venueSelected  = document.getElementById('venue-selected');
-    const venueSelName   = document.getElementById('venue-sel-name');
-    const venueSelMeta   = document.getElementById('venue-sel-meta');
-    const venueChangeBtn = document.getElementById('venue-change-btn');
-    const minCapEl       = document.getElementById('id_min_cap');
-    let   activeVenueType = '';
+    /* ── Manual time slot toggle (original) ──────────────── */
+    origTimeSlotEl.addEventListener('change', function () {
+        if (this.value === '__manual__') {
+            origManualWrap.classList.add('show');
+            origManualInput.required = true;
+            // clear the hidden field — the form submission handler will write the manual value
+        } else {
+            origManualWrap.classList.remove('show');
+            origManualInput.required = false;
+            origManualInput.value = '';
+        }
+        updateSteps();
+    });
 
-    // Type pill clicks
+    /* ── Manual time slot toggle (replacement) ────────────── */
+    timeSlotEl.addEventListener('change', function () {
+        if (this.value === '__manual__') {
+            replManualWrap.classList.add('show');
+            replManualInput.required = true;
+        } else {
+            replManualWrap.classList.remove('show');
+            replManualInput.required = false;
+            replManualInput.value = '';
+        }
+        updateVenueSection();
+        updateSteps();
+    });
+
+    /* ── Intercept form submit to inject manual values ────── */
+    document.getElementById('replacementForm').addEventListener('submit', function (e) {
+        // Original time
+        if (origTimeSlotEl.value === '__manual__') {
+            const mv = origManualInput.value.trim();
+            if (!mv) { e.preventDefault(); origManualInput.focus(); return; }
+            origTimeSlotEl.removeAttribute('name');
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.name = 'original_time_slot'; hidden.value = mv;
+            this.appendChild(hidden);
+        }
+        // Replacement time
+        if (timeSlotEl.value === '__manual__') {
+            const mv = replManualInput.value.trim();
+            if (!mv) { e.preventDefault(); replManualInput.focus(); return; }
+            timeSlotEl.removeAttribute('name');
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.name = 'replacement_time_slot'; hidden.value = mv;
+            this.appendChild(hidden);
+        }
+        submitText.textContent = 'Submitting…';
+        submitSpinner.style.display = 'block';
+        document.getElementById('submitIcon').style.display = 'none';
+        submitBtn.disabled = true;
+    });
+
+    /* ── Venue type pill clicks ───────────────────────────── */
     document.querySelectorAll('.vtype-pill').forEach(btn => {
         btn.addEventListener('click', function () {
             document.querySelectorAll('.vtype-pill').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             activeVenueType = this.dataset.type;
+            // Re-search with new filter if we already have date+time
+            triggerVenueSearch();
         });
     });
 
-    // Show/hide venue search controls based on date+time
-    function updateVenuePrompt() {
-        const hasDate = replaceDateEl && replaceDateEl.value;
-        const hasTime = timeSlotEl && timeSlotEl.value;
-        if (hasDate && hasTime) {
-            venuePrompt.style.display   = 'none';
-            venueControls.style.display = 'block';
-        } else {
-            venuePrompt.style.display   = 'block';
-            venueControls.style.display = 'none';
-            // Reset selection if date/time changes
-            venueIdEl.value = '';
-            venueSelected.style.display  = 'none';
-            venueResults.style.display   = 'none';
-            venueNoResults.style.display = 'none';
-        }
-    }
-
-    if (replaceDateEl) replaceDateEl.addEventListener('change', updateVenuePrompt);
-    if (timeSlotEl)    timeSlotEl.addEventListener('change', updateVenuePrompt);
-
-    // Search button
-    if (venueSearchBtn) {
-        venueSearchBtn.addEventListener('click', function () {
-            const date     = replaceDateEl?.value;
-            const timeSlot = timeSlotEl?.value;
-            if (!date || !timeSlot) return;
-
-            venueSearchBtn.disabled = true;
-            venueSpinner.style.display = 'block';
-            venueResults.style.display   = 'none';
-            venueNoResults.style.display = 'none';
-            venueSelected.style.display  = 'none';
-            venueIdEl.value = '';
-
-            const params = new URLSearchParams({
-                date, time_slot: timeSlot,
-                venue_type: activeVenueType,
-                min_capacity: minCapEl?.value || '',
-            });
-
-            fetch(`/replacements/venue-search/?${params}`)
-                .then(r => r.json())
-                .then(data => {
-                    venueSearchBtn.disabled = false;
-                    venueSpinner.style.display = 'none';
-                    if (data.error) { alert('Error: ' + data.error); return; }
-                    renderVenueResults(data.available || []);
-                })
-                .catch(() => {
-                    venueSearchBtn.disabled = false;
-                    venueSpinner.style.display = 'none';
-                });
+    if (minCapEl) {
+        minCapEl.addEventListener('change', function () {
+            triggerVenueSearch();
         });
     }
 
-    // Render venue cards
+    /* ── Show/hide venue section & auto-search ─────────────── */
+    function getEffectiveTimeSlot() {
+        if (timeSlotEl.value === '__manual__') return replManualInput.value.trim();
+        return timeSlotEl.value;
+    }
+
+    function updateVenueSection() {
+        const hasDate = replaceDateEl && replaceDateEl.value;
+        const hasTime = getEffectiveTimeSlot();
+        if (hasDate && hasTime) {
+            venuePrompt.style.display   = 'none';
+            venueControls.style.display = 'block';
+            triggerVenueSearch();
+        } else {
+            venuePrompt.style.display   = 'block';
+            venueControls.style.display = 'none';
+            resetVenueSelection();
+        }
+    }
+
+    function resetVenueSelection() {
+        venueIdEl.value = '';
+        venueSelected.style.display  = 'none';
+        venueResults.style.display   = 'none';
+        venueNoResults.style.display = 'none';
+        if (venueLoadingEl) venueLoadingEl.classList.remove('show');
+    }
+
+    if (replaceDateEl) replaceDateEl.addEventListener('change', function () {
+        updateVenueSection();
+        updateSteps();
+    });
+
+    // Also re-search when manual replacement time is typed (debounced)
+    let manualTimeTimer;
+    replManualInput.addEventListener('input', function () {
+        clearTimeout(manualTimeTimer);
+        manualTimeTimer = setTimeout(updateVenueSection, 600);
+    });
+
+    /* ── Venue search ─────────────────────────────────────── */
+    function triggerVenueSearch() {
+        const date     = replaceDateEl?.value;
+        const timeSlot = getEffectiveTimeSlot();
+        if (!date || !timeSlot) return;
+
+        // Don't re-search if we already have a selected venue with the same params
+        // (user can click Refresh to force it)
+
+        resetVenueSelection();
+        venueSearchBtn.disabled = true;
+        venueSpinner.style.display = 'block';
+        if (venueLoadingEl) venueLoadingEl.classList.add('show');
+
+        const params = new URLSearchParams({
+            date, time_slot: timeSlot,
+            venue_type: activeVenueType,
+            min_capacity: minCapEl?.value || '',
+        });
+
+        fetch(`/replacements/venue-search/?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                venueSearchBtn.disabled = false;
+                venueSpinner.style.display = 'none';
+                if (venueLoadingEl) venueLoadingEl.classList.remove('show');
+                if (data.error) { alert('Error: ' + data.error); return; }
+                renderVenueResults(data.available || []);
+            })
+            .catch(() => {
+                venueSearchBtn.disabled = false;
+                venueSpinner.style.display = 'none';
+                if (venueLoadingEl) venueLoadingEl.classList.remove('show');
+            });
+    }
+
+    // Refresh button
+    if (venueSearchBtn) {
+        venueSearchBtn.addEventListener('click', function () {
+            triggerVenueSearch();
+        });
+    }
+
+    /* ── Render venue cards ───────────────────────────────── */
     function renderVenueResults(venues) {
         venueResults.innerHTML = '';
         if (!venues.length) {
@@ -605,11 +781,11 @@ document.addEventListener('DOMContentLoaded', function () {
         venues.forEach(v => {
             const card = document.createElement('div');
             card.className = 'venue-card-opt';
-            card.dataset.id       = v.id;
-            card.dataset.name     = v.name;
-            card.dataset.meta     = `Cap: ${v.capacity} · ${v.location}`;
-            card.dataset.icon     = typeIcons[v.venue_type] || 'fa-building';
-            card.dataset.type     = v.venue_type;
+            card.dataset.id   = v.id;
+            card.dataset.name = v.name;
+            card.dataset.meta = `Cap: ${v.capacity} · ${v.location}`;
+            card.dataset.icon = typeIcons[v.venue_type] || 'fa-building';
+            card.dataset.type = v.venue_type;
             card.innerHTML = `
                 <div class="vc-name"><i class="fas ${typeIcons[v.venue_type] || 'fa-building'} me-1" style="font-size:11px; opacity:.7;"></i>${v.name}</div>
                 <span class="vc-type ${v.venue_type}">${v.type_display}</span>
@@ -631,7 +807,6 @@ document.addEventListener('DOMContentLoaded', function () {
         venueSelMeta.textContent = meta;
         const iconEl = document.getElementById('venue-sel-icon');
         if (iconEl) iconEl.className = `fas ${icon}`;
-        // Make sure the controls container is visible before showing the card
         if (venueControls) venueControls.style.display = 'block';
         if (venuePrompt)   venuePrompt.style.display   = 'none';
         venueSelected.style.display  = 'block';
@@ -639,41 +814,46 @@ document.addEventListener('DOMContentLoaded', function () {
         venueNoResults.style.display = 'none';
         updateSteps();
         conflictAlert.classList.remove('show');
+        checkConflict();
     }
 
-    // Change button
     if (venueChangeBtn) {
         venueChangeBtn.addEventListener('click', function () {
             venueIdEl.value = '';
             venueSelected.style.display = 'none';
             if (venueResults.children.length) {
                 venueResults.style.display = 'grid';
+            } else {
+                triggerVenueSearch();
             }
             updateSteps();
         });
     }
 
-    // When AI suggestion is used — also trigger venue selection display
-    const _origSelectVenue = window._selectVenue;
-    window._selectFromAI = selectVenue;
+    /* ── Step progress ────────────────────────────────────── */
+    function getOriginalTimeValue() {
+        if (origTimeSlotEl.value === '__manual__') return origManualInput.value.trim();
+        return origTimeSlotEl.value;
+    }
 
     function updateSteps() {
         const subject  = document.getElementById('id_subject')?.value;
         const origDate = originalDateEl?.value;
+        const origTime = getOriginalTimeValue();
         const repDate  = replaceDateEl?.value;
-        const timeSlot = timeSlotEl?.value;
-        const venue    = document.getElementById('id_venue')?.value;
+        const repTime  = getEffectiveTimeSlot();
+        const venue    = venueIdEl?.value;
         const reason   = document.querySelector('textarea[name="reason"]')?.value?.trim();
 
-        document.getElementById('step1')?.classList.toggle('done', !!(subject && origDate));
-        document.getElementById('step2')?.classList.toggle('done', !!(repDate && timeSlot && venue));
+        document.getElementById('step1')?.classList.toggle('done', !!(subject && origDate && origTime));
+        document.getElementById('step2')?.classList.toggle('done', !!(repDate && repTime && venue));
         document.getElementById('step3')?.classList.toggle('done', !!(reason));
 
-        const s2Active = !!(subject && origDate);
-        const s3Active = !!(repDate && timeSlot && venue);
+        const s2Active = !!(subject && origDate && origTime);
+        const s3Active = !!(repDate && repTime && venue);
         document.getElementById('step2')?.classList.toggle('active', s2Active && !s3Active);
         document.getElementById('step3')?.classList.toggle('active', s3Active && !reason);
-        document.getElementById('step4')?.classList.toggle('active', !!(subject && origDate && repDate && timeSlot && venue && reason));
+        document.getElementById('step4')?.classList.toggle('active', !!(subject && origDate && origTime && repDate && repTime && venue && reason));
     }
 
     document.querySelectorAll('.f-input, .f-select, .f-textarea').forEach(el => {
@@ -681,6 +861,7 @@ document.addEventListener('DOMContentLoaded', function () {
         el.addEventListener('input',  updateSteps);
     });
 
+    /* ── AI button enable/disable ─────────────────────────── */
     if (originalDateEl) {
         originalDateEl.addEventListener('change', function () {
             if (this.value) {
@@ -695,6 +876,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /* ── AI fetch & render ────────────────────────────────── */
     aiBtn.addEventListener('click', function () {
         const dateVal = originalDateEl?.value;
         if (!dateVal) return;
@@ -729,80 +911,93 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         aiResultCount.textContent = suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '');
-        suggestions.forEach(function (s) {
+
+        // Group suggestions by date+time so we can show alternate venues
+        // Each suggestion is one card; if multiple suggestions share date+time, show them as alt venues
+        suggestions.forEach(function (s, idx) {
             const confClass = { High:'conf-high', Medium:'conf-medium', Low:'conf-low' }[s.confidence] || 'conf-low';
             const card = document.createElement('div');
             card.className = 'ai-card';
             card.innerHTML = `
-                <div class="ai-card-left">
-                    <div class="ai-card-date">${s.day_name}, <span>${fmtDate(s.date)}</span></div>
-                    <div class="ai-card-venue"><i class="fas fa-map-marker-alt me-1"></i>${s.venue_name}</div>
-                    <div class="ai-card-loc">${s.venue_location}</div>
-                    <div class="ai-card-reason"><i class="fas fa-lightbulb me-1"></i>${s.reason}</div>
-                </div>
-                <div class="ai-card-right">
-                    <span class="conf-badge ${confClass}">${s.confidence}</span>
-                    <div style="font-size:11px;color:var(--text-3);font-family:monospace;">${s.time_slot}</div>
-                    <button type="button" class="use-btn"
-                        data-date="${s.date}" data-time="${s.time_slot}"
-                        data-venue="${s.venue_id}" data-venue-name="${s.venue_name}"
-                        data-venue-capacity="${s.capacity||''}" data-venue-loc="${s.venue_location||''}">
-                        Use Slot
-                    </button>
+                <div class="ai-card-top">
+                    <div class="ai-card-left" style="flex:1;">
+                        <div class="ai-card-date">${s.day_name}, <span>${fmtDate(s.date)}</span>
+                            <span style="font-family:monospace; font-size:11px; color:var(--text-3); margin-left:8px;">${s.time_slot}</span>
+                        </div>
+                        <div class="ai-card-venue"><i class="fas fa-building me-1"></i>${s.venue_name}
+                            <span style="font-size:10px; color:var(--text-3); margin-left:4px;">${s.venue_location}</span>
+                        </div>
+                        <div class="ai-card-reason"><i class="fas fa-lightbulb me-1"></i>${s.reason}</div>
+                    </div>
+                    <div class="ai-card-right">
+                        <span class="conf-badge ${confClass}">${s.confidence}</span>
+                        <button type="button" class="use-btn"
+                            data-date="${s.date}" data-time="${s.time_slot}"
+                            data-venue="${s.venue_id}" data-venue-name="${s.venue_name}"
+                            data-venue-capacity="${s.capacity||''}" data-venue-loc="${s.venue_location||''}">
+                            Use this slot
+                        </button>
+                    </div>
                 </div>`;
             aiCards.appendChild(card);
         });
+
         aiPanel.style.display = 'block';
 
+        /* Wire up "Use this slot" buttons */
         aiCards.querySelectorAll('.use-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                // Capture dataset values BEFORE any async operations
-                const selDate     = this.dataset.date;
-                const selTime     = this.dataset.time;
-                const selVenueId  = this.dataset.venue;
+                const selDate      = this.dataset.date;
+                const selTime      = this.dataset.time;
+                const selVenueId   = this.dataset.venue;
                 const selVenueName = this.dataset.venueName;
-                const selVenueCap = this.dataset.venueCapacity || '—';
-                const selVenueLoc = this.dataset.venueLoc || '';
+                const selVenueCap  = this.dataset.venueCapacity || '—';
+                const selVenueLoc  = this.dataset.venueLoc || '';
 
-                // Fill date
+                // Fill replacement date
                 if (replaceDateEl && selDate) {
                     replaceDateEl.value = selDate;
                     replaceDateEl.dispatchEvent(new Event('change'));
                 }
-                // Fill time slot
-                if (timeSlotEl && selTime) {
+
+                // Fill replacement time slot (select existing option or switch to manual)
+                if (selTime) {
+                    let matched = false;
                     for (const opt of timeSlotEl.options) {
-                        if (opt.value === selTime) { opt.selected = true; break; }
+                        if (opt.value === selTime) { opt.selected = true; matched = true; break; }
+                    }
+                    if (!matched) {
+                        // Switch to manual entry
+                        timeSlotEl.value = '__manual__';
+                        replManualWrap.classList.add('show');
+                        replManualInput.required = true;
+                        replManualInput.value = selTime;
                     }
                     timeSlotEl.dispatchEvent(new Event('change'));
                 }
-                // Select venue using setTimeout so it runs AFTER all change-event handlers settle
-                if (selVenueId && selVenueName) {
-                    setTimeout(() => {
-                        selectVenue(
-                            selVenueId,
-                            selVenueName,
-                            `Cap: ${selVenueCap} · ${selVenueLoc}`,
-                            'fa-building'
-                        );
-                    }, 20);
-                }
+
+                // Pre-select the AI-suggested venue after venue section settles
+                setTimeout(() => {
+                    selectVenue(selVenueId, selVenueName, `Cap: ${selVenueCap} · ${selVenueLoc}`, 'fa-building');
+                }, 50);
+
+                // Mark card as selected
                 aiCards.querySelectorAll('.ai-card').forEach(c => c.classList.remove('selected'));
                 this.closest('.ai-card').classList.add('selected');
+
+                // Scroll to the replacement section smoothly
                 replaceDateEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 updateSteps();
             });
         });
     }
 
+    /* ── Conflict check ───────────────────────────────────── */
     function checkConflict() {
-        const venue    = document.getElementById('id_venue')?.value;
+        const venue    = venueIdEl?.value;
         const date     = replaceDateEl?.value;
-        const timeSlot = timeSlotEl?.value;
-        if (!venue || !date || !timeSlot) {
-            conflictAlert.classList.remove('show');
-            return;
-        }
+        const timeSlot = getEffectiveTimeSlot();
+        if (!venue || !date || !timeSlot) { conflictAlert.classList.remove('show'); return; }
         fetch(`/replacements/check-conflict/?venue_id=${venue}&date=${date}&time_slot=${encodeURIComponent(timeSlot)}`)
             .then(r => r.json())
             .then(data => {
@@ -820,13 +1015,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el) el.addEventListener('change', checkConflict);
     });
 
-    document.getElementById('replacementForm')?.addEventListener('submit', function () {
-        submitText.textContent = 'Submitting…';
-        submitSpinner.style.display = 'block';
-        document.getElementById('submitIcon').style.display = 'none';
-        submitBtn.disabled = true;
-    });
-
+    /* ── Helpers ──────────────────────────────────────────── */
     function fmtDate(str) {
         const d = new Date(str + 'T00:00:00');
         return d.toLocaleDateString('en-MY', { day:'numeric', month:'short', year:'numeric' });
