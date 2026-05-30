@@ -519,36 +519,133 @@ def lecturer_venue_feedback(request):
 @require_GET
 def ai_suggest_slots(request):
     """
-    AJAX endpoint — returns AI-powered replacement slot suggestions.
-    URL: /replacements/ai-suggest/?original_date=2025-11-20
+    AJAX endpoint — returns AI-ranked venue suggestions for a chosen date + time slot.
+    URL: /replacements/ai-suggest/?date=2025-11-20&time_slot=09:00-11:00
 
     Logic:
-    - Analyzes lecturer's past approved replacement patterns
-    - Finds preferred days of week and preferred venues
-    - Returns top 3 available slots with confidence rating
+    - Finds all venues available on that date + time (no block, no conflict)
+    - Ranks them using the lecturer's past replacement history
+    - Returns up to 5 ranked venues with confidence label and reason
     """
     if not hasattr(request.user, 'userprofile') or request.user.userprofile.user_type != 'lecturer':
         return JsonResponse({'error': 'Access denied. Lecturer only.'}, status=403)
 
-    original_date_str = request.GET.get('original_date')
-    if not original_date_str:
-        return JsonResponse({'error': 'original_date parameter is required.'}, status=400)
+    date_str  = request.GET.get('date', '').strip()
+    time_slot = request.GET.get('time_slot', '').strip()
+
+    if not date_str or not time_slot:
+        return JsonResponse({'error': 'date and time_slot parameters are required.'}, status=400)
 
     try:
-        original_date = datetime.strptime(original_date_str, '%Y-%m-%d').date()
+        req_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
         return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
 
-    try:
-        suggestions = _generate_ai_suggestions(
-            lecturer_id=request.user.id,
-            original_date=original_date,
-            num_suggestions=3
-        )
-        return JsonResponse({'suggestions': suggestions})
+    req_start, req_end = _parse_time_range(time_slot)
+    if req_start is None:
+        return JsonResponse({'error': 'Invalid time_slot format. Use HH:MM-HH:MM.'}, status=400)
 
+    try:
+        venues = _generate_ai_venue_suggestions(
+            lecturer_id=request.user.id,
+            req_date=req_date,
+            time_slot=time_slot,
+            req_start=req_start,
+            req_end=req_end,
+        )
+        return JsonResponse({'venues': venues})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def _generate_ai_venue_suggestions(lecturer_id, req_date, time_slot, req_start, req_end):
+    """
+    Returns a list of available venues ranked by lecturer familiarity,
+    each with a confidence label and a human-readable reason.
+    """
+    from collections import Counter
+
+    # 1. Build usage history for this lecturer
+    past = ClassReplacementRequest.objects.filter(
+        lecturer_id=lecturer_id,
+        status='approved'
+    ).values('venue_id').annotate(times_used=Count('venue_id')).order_by('-times_used')
+    usage_map = {r['venue_id']: r['times_used'] for r in past}
+
+    # 2. Venues with critical open issues (penalty)
+    problematic_ids = set(
+        VenueFeedback.objects.filter(issue_status='critical')
+        .values_list('venue_id', flat=True)
+    )
+
+    # 3. Venues blocked by admin on this date
+    blocked_ids = set(
+        VenueBlock.objects.filter(blocked_date=req_date)
+        .values_list('venue_id', flat=True)
+    )
+
+    # 4. Venues with overlapping replacement requests
+    conflicted = set()
+    for vid, slot in ClassReplacementRequest.objects.filter(
+        replacement_date=req_date,
+        status__in=['pending', 'approved']
+    ).values_list('venue_id', 'replacement_time_slot'):
+        s, e = _parse_time_range(slot)
+        if s and e and req_start < e and s < req_end:
+            conflicted.add(vid)
+
+    # 5. Venues with regular class schedule conflict on this weekday
+    sched_conflict = set()
+    for vid, s_start, s_end in ClassSchedule.objects.filter(
+        venue__isnull=False, day_of_week=req_date.weekday()
+    ).values_list('venue_id', 'start_time', 'end_time'):
+        if req_start < s_end and s_start < req_end:
+            sched_conflict.add(vid)
+
+    excluded = blocked_ids | conflicted | sched_conflict
+
+    # 6. Score and sort all active, available venues
+    result = []
+    type_icon = {'classroom': 'fa-chalkboard', 'lab': 'fa-desktop',
+                 'workshop': 'fa-tools', 'studio': 'fa-palette'}
+
+    for venue in Venue.objects.filter(is_active=True).exclude(id__in=excluded):
+        times_used = usage_map.get(venue.id, 0)
+        has_issues = venue.id in problematic_ids
+
+        if times_used >= 3:
+            confidence = 'High'
+            reason = f"You've used this venue {times_used} times before — a familiar choice."
+        elif times_used >= 1:
+            confidence = 'Medium'
+            reason = f"You've used this venue {times_used} time(s) before."
+        else:
+            confidence = 'Low'
+            reason = "Available venue — no prior usage history."
+
+        if has_issues:
+            confidence = 'Low'
+            reason += " ⚠️ Has an open critical issue — consider another venue."
+
+        score = times_used * 10 - (20 if has_issues else 0)
+
+        result.append({
+            'venue_id':       venue.id,
+            'venue_name':     venue.venue_name,
+            'venue_location': venue.location,
+            'venue_type':     venue.venue_type,
+            'type_display':   venue.get_venue_type_display(),
+            'icon':           type_icon.get(venue.venue_type, 'fa-building'),
+            'capacity':       venue.capacity,
+            'facilities':     venue.facilities or '',
+            'confidence':     confidence,
+            'reason':         reason,
+            'times_used':     times_used,
+            'score':          score,
+        })
+
+    result.sort(key=lambda x: x['score'], reverse=True)
+    return result[:6]
 
 
 def _parse_time_range(slot_str):

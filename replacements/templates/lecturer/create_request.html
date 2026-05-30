@@ -381,7 +381,7 @@
             <div class="ai-trigger-wrap">
                 <button type="button" class="ai-btn" id="aiBtn" disabled>
                     <i class="fas fa-magic"></i>
-                    <span id="aiBtnText">Select an original date first to get AI suggestions</span>
+                    <span id="aiBtnText">Select a replacement date &amp; time to get AI venue suggestions</span>
                     <span class="ai-pill">AI</span>
                     <div class="spinner" id="aiSpinner"></div>
                 </button>
@@ -391,10 +391,10 @@
             <div class="ai-panel" id="aiPanel">
                 <div class="ai-panel-head">
                     <div>
-                        <div class="ai-panel-title"><i class="fas fa-lightbulb me-1"></i>Smart Slot Suggestions</div>
-                        <div class="ai-panel-sub">Based on your replacement history &amp; venue availability — click a suggestion to apply it</div>
+                        <div class="ai-panel-title"><i class="fas fa-lightbulb me-1"></i>AI Venue Recommendations</div>
+                        <div class="ai-panel-sub">Available venues ranked by your usage history — click to select</div>
                     </div>
-                    <div class="ai-badge" id="aiResultCount">3 suggestions</div>
+                    <div class="ai-badge" id="aiResultCount"></div>
                 </div>
                 <div class="ai-cards" id="aiCards"></div>
             </div>
@@ -861,81 +861,91 @@ document.addEventListener('DOMContentLoaded', function () {
         el.addEventListener('input',  updateSteps);
     });
 
-    /* ── AI button enable/disable ─────────────────────────── */
-    if (originalDateEl) {
-        originalDateEl.addEventListener('change', function () {
-            if (this.value) {
-                aiBtn.disabled = false;
-                aiBtnText.textContent = 'Get AI Smart Slot Suggestions';
-            } else {
-                aiBtn.disabled = true;
-                aiBtnText.textContent = 'Select an original date first to get AI suggestions';
-                aiPanel.style.display = 'none';
-            }
-            updateSteps();
-        });
+    /* ── AI button — enable when replacement date + time are set ── */
+    function updateAiBtn() {
+        const hasDate = replaceDateEl?.value;
+        const hasTime = getEffectiveTimeSlot();
+        if (hasDate && hasTime) {
+            aiBtn.disabled = false;
+            aiBtnText.textContent = 'Get AI Venue Recommendations';
+        } else {
+            aiBtn.disabled = true;
+            aiBtnText.textContent = 'Select a replacement date & time to get AI venue suggestions';
+            aiPanel.style.display = 'none';
+        }
     }
+
+    if (replaceDateEl) replaceDateEl.addEventListener('change', updateAiBtn);
+    timeSlotEl.addEventListener('change', updateAiBtn);
+    replManualInput.addEventListener('input', updateAiBtn);
 
     /* ── AI fetch & render ────────────────────────────────── */
     aiBtn.addEventListener('click', function () {
-        const dateVal = originalDateEl?.value;
-        if (!dateVal) return;
+        const dateVal = replaceDateEl?.value;
+        const timeVal = getEffectiveTimeSlot();
+        if (!dateVal || !timeVal) return;
 
         aiBtn.disabled = true;
-        aiBtnText.textContent = 'Analysing your patterns…';
+        aiBtnText.textContent = 'Analysing venues…';
         aiSpinner.style.display = 'block';
         aiPanel.style.display   = 'none';
 
-        fetch(`/replacements/ai-suggest/?original_date=${dateVal}`)
+        const params = new URLSearchParams({ date: dateVal, time_slot: timeVal });
+        fetch(`/replacements/ai-suggest/?${params}`)
             .then(r => r.json())
             .then(data => {
                 aiBtn.disabled = false;
-                aiBtnText.textContent = 'Refresh AI Suggestions';
+                aiBtnText.textContent = 'Refresh AI Recommendations';
                 aiSpinner.style.display = 'none';
                 if (data.error) { alert('AI Error: ' + data.error); return; }
-                renderSuggestions(data.suggestions);
+                renderAiVenues(data.venues || []);
             })
             .catch(err => {
                 aiBtn.disabled = false;
-                aiBtnText.textContent = 'Get AI Smart Slot Suggestions';
+                aiBtnText.textContent = 'Get AI Venue Recommendations';
                 aiSpinner.style.display = 'none';
                 console.error('AI fetch error:', err);
             });
     });
 
-    function renderSuggestions(suggestions) {
+    function renderAiVenues(venues) {
         aiCards.innerHTML = '';
-        if (!suggestions || suggestions.length === 0) {
-            aiCards.innerHTML = '<p style="color:var(--text-3);font-size:13px;padding:6px 4px;">No available slots found in the next 30 days.</p>';
+        if (!venues.length) {
+            aiCards.innerHTML = '<p style="color:var(--text-3);font-size:13px;padding:6px 4px;"><i class="fas fa-calendar-times me-1"></i>No venues available for the selected date and time.</p>';
             aiPanel.style.display = 'block';
+            aiResultCount.textContent = '';
             return;
         }
-        aiResultCount.textContent = suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '');
+        aiResultCount.textContent = venues.length + ' venue' + (venues.length !== 1 ? 's' : '') + ' available';
 
-        // Group suggestions by date+time so we can show alternate venues
-        // Each suggestion is one card; if multiple suggestions share date+time, show them as alt venues
-        suggestions.forEach(function (s, idx) {
-            const confClass = { High:'conf-high', Medium:'conf-medium', Low:'conf-low' }[s.confidence] || 'conf-low';
+        venues.forEach(function (v) {
+            const confClass = { High:'conf-high', Medium:'conf-medium', Low:'conf-low' }[v.confidence] || 'conf-low';
+            const rankBadge = v.times_used > 0
+                ? `<span style="font-size:10px; color:var(--text-3);"><i class="fas fa-history me-1"></i>Used ${v.times_used}×</span>`
+                : `<span style="font-size:10px; color:var(--text-3);">New venue</span>`;
             const card = document.createElement('div');
             card.className = 'ai-card';
             card.innerHTML = `
                 <div class="ai-card-top">
                     <div class="ai-card-left" style="flex:1;">
-                        <div class="ai-card-date">${s.day_name}, <span>${fmtDate(s.date)}</span>
-                            <span style="font-family:monospace; font-size:11px; color:var(--text-3); margin-left:8px;">${s.time_slot}</span>
+                        <div class="ai-card-venue" style="font-size:13px; font-weight:700; color:var(--text-1); margin-bottom:3px;">
+                            <i class="fas ${v.icon} me-1" style="color:var(--navy);"></i>${v.venue_name}
                         </div>
-                        <div class="ai-card-venue"><i class="fas fa-building me-1"></i>${s.venue_name}
-                            <span style="font-size:10px; color:var(--text-3); margin-left:4px;">${s.venue_location}</span>
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">
+                            <span class="vc-type ${v.venue_type}" style="margin:0;">${v.type_display}</span>
+                            <span style="font-size:11px; color:var(--text-3);"><i class="fas fa-users me-1" style="font-size:10px;"></i>Cap: ${v.capacity}</span>
+                            <span style="font-size:11px; color:var(--text-3);"><i class="fas fa-map-marker-alt me-1" style="font-size:10px;"></i>${v.venue_location}</span>
                         </div>
-                        <div class="ai-card-reason"><i class="fas fa-lightbulb me-1"></i>${s.reason}</div>
+                        <div class="ai-card-reason"><i class="fas fa-lightbulb me-1"></i>${v.reason}</div>
                     </div>
                     <div class="ai-card-right">
-                        <span class="conf-badge ${confClass}">${s.confidence}</span>
+                        <span class="conf-badge ${confClass}">${v.confidence}</span>
+                        ${rankBadge}
                         <button type="button" class="use-btn"
-                            data-date="${s.date}" data-time="${s.time_slot}"
-                            data-venue="${s.venue_id}" data-venue-name="${s.venue_name}"
-                            data-venue-capacity="${s.capacity||''}" data-venue-loc="${s.venue_location||''}">
-                            Use this slot
+                            data-venue="${v.venue_id}" data-venue-name="${v.venue_name}"
+                            data-venue-capacity="${v.capacity}" data-venue-loc="${v.venue_location}"
+                            data-icon="${v.icon}">
+                            Select
                         </button>
                     </div>
                 </div>`;
@@ -944,49 +954,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         aiPanel.style.display = 'block';
 
-        /* Wire up "Use this slot" buttons */
         aiCards.querySelectorAll('.use-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                const selDate      = this.dataset.date;
-                const selTime      = this.dataset.time;
-                const selVenueId   = this.dataset.venue;
-                const selVenueName = this.dataset.venueName;
-                const selVenueCap  = this.dataset.venueCapacity || '—';
-                const selVenueLoc  = this.dataset.venueLoc || '';
-
-                // Fill replacement date
-                if (replaceDateEl && selDate) {
-                    replaceDateEl.value = selDate;
-                    replaceDateEl.dispatchEvent(new Event('change'));
-                }
-
-                // Fill replacement time slot (select existing option or switch to manual)
-                if (selTime) {
-                    let matched = false;
-                    for (const opt of timeSlotEl.options) {
-                        if (opt.value === selTime) { opt.selected = true; matched = true; break; }
-                    }
-                    if (!matched) {
-                        // Switch to manual entry
-                        timeSlotEl.value = '__manual__';
-                        replManualWrap.classList.add('show');
-                        replManualInput.required = true;
-                        replManualInput.value = selTime;
-                    }
-                    timeSlotEl.dispatchEvent(new Event('change'));
-                }
-
-                // Pre-select the AI-suggested venue after venue section settles
-                setTimeout(() => {
-                    selectVenue(selVenueId, selVenueName, `Cap: ${selVenueCap} · ${selVenueLoc}`, 'fa-building');
-                }, 50);
-
-                // Mark card as selected
+                selectVenue(
+                    this.dataset.venue,
+                    this.dataset.venueName,
+                    `Cap: ${this.dataset.venueCapacity} · ${this.dataset.venueLoc}`,
+                    this.dataset.icon || 'fa-building'
+                );
                 aiCards.querySelectorAll('.ai-card').forEach(c => c.classList.remove('selected'));
                 this.closest('.ai-card').classList.add('selected');
-
-                // Scroll to the replacement section smoothly
-                replaceDateEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 updateSteps();
             });
         });
