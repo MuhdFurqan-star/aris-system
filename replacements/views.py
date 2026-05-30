@@ -2629,7 +2629,7 @@ def timetable_view(request):
         )
     elif user_type == 'lecturer':
         available_sems = list(
-            Semester.objects.filter(subjects__lecturer=request.user)
+            Semester.objects.filter(subject__lecturer=request.user)
             .distinct().order_by('name', 'class_name')
         )
     else:
