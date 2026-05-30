@@ -48,9 +48,9 @@ urlpatterns = [
          views.export_feedback_report_csv, 
          name='export_feedback_report_csv'),
          
-    path('ai-suggest/', views.ai_suggest_slots, name='ai_suggest_slots'),
-    path('check-conflict/', views.check_slot_conflict, name='check_slot_conflict'),
-    path('venue-search/', views.venue_search_available, name='venue_search_available'),
+    path('replacements/ai-suggest/', views.ai_suggest_slots, name='ai_suggest_slots'),
+    path('replacements/check-conflict/', views.check_slot_conflict, name='check_slot_conflict'),
+    path('replacements/venue-search/', views.venue_search_available, name='venue_search_available'),
 
     # Notifications
     path('notifications/', views.get_notifications, name='get_notifications'),
