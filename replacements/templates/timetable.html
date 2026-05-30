@@ -118,6 +118,27 @@
 }
 .cal-link:hover { background:rgba(255,255,255,.30); color:#fff; }
 
+/* ── Semester switcher ───────────────────────────────── */
+.sem-switcher {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding: 10px 14px; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 14px;
+}
+.sem-switcher-label {
+    font-size: 11px; font-weight: 800; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+}
+.sem-pill {
+    display: inline-block; padding: 5px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; text-decoration: none;
+    border: 1.5px solid var(--border); color: var(--text-2);
+    background: var(--page-bg); transition: all .15s; white-space: nowrap;
+}
+.sem-pill:hover  { border-color: var(--navy); color: var(--navy); }
+.sem-pill.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
 /* ── Legend ──────────────────────────────────────────── */
 .legend { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; }
 .legend-item { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); }
@@ -138,7 +159,14 @@
          style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
             <h1><i class="fas fa-calendar-week me-2" style="color:#b7791f;"></i>Weekly Timetable</h1>
-            <p>Regular classes &amp; replacement classes — week of {{ monday|date:"d M Y" }}</p>
+            <p>
+                {% if selected_sem %}
+                    Sem {{ selected_sem.name }} — Class {{ selected_sem.class_name }}
+                    &nbsp;·&nbsp; week of {{ monday|date:"d M Y" }}
+                {% else %}
+                    Regular classes &amp; replacement classes — week of {{ monday|date:"d M Y" }}
+                {% endif %}
+            </p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             {% if user_type == 'student' %}
@@ -147,18 +175,47 @@
             </a>
             {% endif %}
             <div class="week-nav">
-                <a href="?week={{ week_offset|add:'-1' }}"><i class="fas fa-chevron-left"></i></a>
+                <a href="?week={{ week_offset|add:'-1' }}{% if selected_sem %}&sem={{ selected_sem.id }}{% endif %}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
                 <span class="week-label">{{ monday|date:"d M" }} – {{ week_days.4|date:"d M Y" }}</span>
-                <a href="?week={{ week_offset|add:'1' }}"><i class="fas fa-chevron-right"></i></a>
+                <a href="?week={{ week_offset|add:'1' }}{% if selected_sem %}&sem={{ selected_sem.id }}{% endif %}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
             </div>
             {% if week_offset != 0 %}
-            <a href="?week=0" class="btn-outline-academic" style="padding:7px 14px;">Today</a>
+            <a href="?week=0{% if selected_sem %}&sem={{ selected_sem.id }}{% endif %}" class="btn-outline-academic" style="padding:7px 14px;">Today</a>
             {% endif %}
             <a href="{% url 'dashboard' %}" class="btn-outline-academic">
                 <i class="fas fa-arrow-left me-1"></i>Dashboard
             </a>
         </div>
     </div>
+
+    <!-- Semester / class switcher -->
+    {% if available_sems %}
+    <div class="sem-switcher">
+        <span class="sem-switcher-label"><i class="fas fa-layer-group"></i> Class Group:</span>
+        {% for sem in available_sems %}
+        <a href="?week={{ week_offset }}&sem={{ sem.id }}"
+           class="sem-pill {% if selected_sem.id == sem.id %}active{% endif %}">
+            Sem {{ sem.name }} {{ sem.class_name }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not selected_sem %}
+    <div class="card-academic" style="text-align:center; padding:40px;">
+        <i class="fas fa-calendar-times" style="font-size:36px; opacity:.15; display:block; margin-bottom:12px;"></i>
+        <div style="font-weight:700; font-size:15px; color:var(--text-2); margin-bottom:6px;">No class group found</div>
+        <p style="font-size:13px; color:var(--text-3);">
+            {% if user_type == 'student' %}You are not enrolled in any class yet. Contact the administrator.
+            {% elif user_type == 'lecturer' %}You are not assigned to any subjects yet.
+            {% else %}No semesters have been created yet.{% endif %}
+        </p>
+    </div>
+    {% else %}
 
     <div class="card-academic">
         <div class="timetable-wrap" style="padding:8px;">
@@ -258,6 +315,8 @@
             </table>
         </div>
     </div>
+
+    {% endif %}{# end selected_sem #}
 
     <div class="legend">
         <div class="legend-item">

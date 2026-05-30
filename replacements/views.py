@@ -2602,10 +2602,15 @@ def admin_venue_heatmap(request):
 
 @login_required
 def timetable_view(request):
-    """Weekly timetable: regular class schedule + approved replacement classes."""
-    import re
+    """
+    Weekly timetable showing ALL subjects for a chosen semester/class group.
+    - Students: auto-detect their enrolled class(es); dropdown if multiple.
+    - Lecturers: dropdown of all class groups they teach in.
+    - Admins: dropdown of all semesters.
+    """
+    import re as _re
 
-    HOUR_SLOTS = list(range(8, 18))   # 08:00 … 17:00  (each row = 1 hour)
+    HOUR_SLOTS = list(range(8, 18))
     SLOT_KEYS  = [f"{h:02d}:00" for h in HOUR_SLOTS]
 
     week_offset = int(request.GET.get('week', 0))
@@ -2613,67 +2618,40 @@ def timetable_view(request):
     monday      = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
     week_days   = [monday + timedelta(days=i) for i in range(5)]
 
-    from replacements.models import ClassSchedule
-
     profile   = getattr(request.user, 'userprofile', None)
     user_type = getattr(profile, 'user_type', 'student')
 
-    # ── 1. Collect regular class schedules ───────────────────────────────────
+    # ── Determine which semesters this user can see ───────────────────────────
     if user_type == 'student':
-        enrolled_sems = list(Semester.objects.filter(enrollments__student=request.user))
-        regular_qs = ClassSchedule.objects.filter(
-            subject__semester__in=enrolled_sems,
-        ).select_related('subject', 'subject__semester', 'subject__lecturer')
+        available_sems = list(
+            Semester.objects.filter(enrollments__student=request.user)
+            .distinct().order_by('name', 'class_name')
+        )
     elif user_type == 'lecturer':
-        regular_qs = ClassSchedule.objects.filter(
-            subject__lecturer=request.user,
-        ).select_related('subject', 'subject__semester')
-        enrolled_sems = []
-    else:  # admin
-        regular_qs = ClassSchedule.objects.all().select_related(
-            'subject', 'subject__semester', 'subject__lecturer'
+        available_sems = list(
+            Semester.objects.filter(subjects__lecturer=request.user)
+            .distinct().order_by('name', 'class_name')
         )
-        enrolled_sems = []
+    else:
+        available_sems = list(Semester.objects.all().order_by('name', 'class_name'))
 
-    # ── 2. Collect approved replacement requests ──────────────────────────────
-    def parse_slot_start(slot_str):
-        """Return (start_hour, duration_hours) from various time slot formats."""
-        slot_str = slot_str.strip()
-        # "08:00-10:00" or "8:00-10:00"
-        m = re.match(r'(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$', slot_str)
-        if m:
-            sh, sm, eh, em = int(m.g(1)), int(m.g(2)), int(m.g(3)), int(m.g(4))
-            return sh, eh - sh
-        # "8:00 AM - 10:00 AM"
-        m = re.match(
-            r'(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)',
-            slot_str, re.IGNORECASE
-        )
-        if m:
-            sh = int(m.group(1))
-            if m.group(3).upper() == 'PM' and sh != 12: sh += 12
-            eh = int(m.group(4))
-            if m.group(6).upper() == 'PM' and eh != 12: eh += 12
-            return sh, max(1, eh - sh)
-        # fallback: just parse first hour
-        m2 = re.match(r'(\d{1,2}):', slot_str)
-        if m2:
-            sh = int(m2.group(1))
-            return sh, 2   # assume 2h default
-        return None, 1
+    # ── Resolve selected semester ─────────────────────────────────────────────
+    sem_id = request.GET.get('sem', '')
+    selected_sem = None
+    if sem_id:
+        selected_sem = next((s for s in available_sems if str(s.id) == sem_id), None)
+    if not selected_sem and available_sems:
+        selected_sem = available_sems[0]
 
-    # monkey-patch the re.Match object (typo fix in parse_slot_start)
-    import re as _re
+    # ── Build timetable queries for ALL subjects in the selected semester ─────
     def _parse_slot_start(slot_str):
         slot_str = slot_str.strip()
         m = _re.match(r'(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$', slot_str)
         if m:
-            sh, eh = int(m.group(1)), int(m.group(3))
-            return sh, max(1, eh - sh)
+            return int(m.group(1)), max(1, int(m.group(3)) - int(m.group(1)))
         m = _re.match(
             r'(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)',
-            slot_str, _re.IGNORECASE
-        )
+            slot_str, _re.IGNORECASE)
         if m:
             sh = int(m.group(1))
             if m.group(3).upper() == 'PM' and sh != 12: sh += 12
@@ -2685,23 +2663,21 @@ def timetable_view(request):
             return int(m2.group(1)), 2
         return 8, 2
 
-    if user_type == 'student':
-        repl_qs = ClassReplacementRequest.objects.filter(
-            status='approved',
-            replacement_date__in=week_days,
-            subject__semester__in=enrolled_sems,
-        ).select_related('subject', 'venue', 'lecturer')
-    elif user_type == 'lecturer':
-        repl_qs = ClassReplacementRequest.objects.filter(
-            status='approved',
-            replacement_date__in=week_days,
-            lecturer=request.user,
-        ).select_related('subject', 'venue', 'lecturer')
+    if selected_sem:
+        regular_qs = (
+            ClassSchedule.objects
+            .filter(subject__semester=selected_sem)
+            .select_related('subject', 'subject__semester', 'subject__lecturer', 'venue')
+        )
+        repl_qs = (
+            ClassReplacementRequest.objects
+            .filter(status='approved', replacement_date__in=week_days,
+                    subject__semester=selected_sem)
+            .select_related('subject', 'venue', 'lecturer')
+        )
     else:
-        repl_qs = ClassReplacementRequest.objects.filter(
-            status='approved',
-            replacement_date__in=week_days,
-        ).select_related('subject', 'venue', 'lecturer')
+        regular_qs = ClassSchedule.objects.none()
+        repl_qs    = ClassReplacementRequest.objects.none()
 
     # ── 3. Build base grid {slot_key: {day: []}} ─────────────────────────────
     grid = {k: {d: [] for d in week_days} for k in SLOT_KEYS}
@@ -2773,12 +2749,14 @@ def timetable_view(request):
         rows.append(row)
 
     context = {
-        'rows':        rows,
-        'week_days':   week_days,
-        'week_offset': week_offset,
-        'today':       today,
-        'monday':      monday,
-        'user_type':   user_type,
+        'rows':          rows,
+        'week_days':     week_days,
+        'week_offset':   week_offset,
+        'today':         today,
+        'monday':        monday,
+        'user_type':     user_type,
+        'available_sems': available_sems,
+        'selected_sem':  selected_sem,
     }
     return render(request, 'timetable.html', context)
 
