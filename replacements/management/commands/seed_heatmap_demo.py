@@ -67,14 +67,25 @@ class Command(BaseCommand):
             '--clear', action='store_true',
             help='Delete previously seeded heatmap-demo rows before seeding again.',
         )
+        parser.add_argument(
+            '--skip-if-seeded', action='store_true',
+            help='Do nothing if heatmap-demo rows already exist (safe for deploy hooks).',
+        )
 
     def handle(self, *args, **options):
         scale = options['scale']
 
+        existing = ClassReplacementRequest.objects.filter(reason__startswith=DEMO_TAG)
+
+        # Idempotent mode for deploy hooks: bail out if already seeded.
+        if options['skip_if_seeded'] and not options['clear'] and existing.exists():
+            self.stdout.write(self.style.SUCCESS(
+                f'Heatmap demo already seeded ({existing.count()} rows). Skipping.'
+            ))
+            return
+
         if options['clear']:
-            deleted, _ = ClassReplacementRequest.objects.filter(
-                reason__startswith=DEMO_TAG
-            ).delete()
+            deleted, _ = existing.delete()
             self.stdout.write(self.style.WARNING(
                 f'Cleared {deleted} previously seeded heatmap-demo rows.'
             ))

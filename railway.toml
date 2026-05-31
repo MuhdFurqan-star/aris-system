@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "python manage.py migrate --no-input && python manage.py load_initial_data && python manage.py collectstatic --no-input && gunicorn replacement_system.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --no-sendfile"
+startCommand = "python manage.py migrate --no-input && python manage.py load_initial_data && python manage.py seed_heatmap_demo --skip-if-seeded && python manage.py collectstatic --no-input && gunicorn replacement_system.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --no-sendfile"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
