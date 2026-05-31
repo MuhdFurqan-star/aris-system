@@ -2,4 +2,4 @@
 cmds = ["python -m venv --copies /opt/venv"]
 
 [phases.install]
-cmds = [". /opt/venv/bin/activate && pip install -r requirements.txt"]
+cmds = [". /opt/venv/bin/activate && pip install --retries 10 --timeout 120 --no-cache-dir -r requirements.txt"]
